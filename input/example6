@@ -1,0 +1,52 @@
+song = { (timeBound 200 m1)
+         (timeBound 200 m2) } ;
+
+series = [ 1 2 3 4 5 6 7 ^1] ;
+
+/*
+This is just a simple sequential list which we have seen before.
+*/
+
+timeBound t xs =
+    if (or (nil? xs)
+           (< t (time (car xs))))
+        []
+        (seq (car xs)
+             (timeBound (- t (time (car xs))) (cdr xs))) ;
+
+/*
+Here we define a function which take two argument, the first one t should be a number represent a duration bound, the second one is a sequencial list. The function returns a sequence which is the longest prefix of xs within the duration bound.
+
+In above definition, time is a primitive function takes an arbitrary melody as argument and return its duration. 
+*/
+
+raise n p = if (< n 0)
+    (lower (- 0 n) p)
+    (if (== 0 n)
+        p
+        (raise (- n 1) #p)) ;
+
+lower n p = if (< n 0)
+    (raise (- 0 n) p)
+    (if (== 0 n)
+        p
+        (lower (- n 1) &p)) ;
+
+/*
+Here we define two function to repeatedly apply # or & operator to raise or lower the pitch of a melody.
+*/
+
+m1 = seq (lower 20 series) #m1 ;
+m2 = seq (raise 20 series) &m2
+
+/*
+Here, we define m1 and m2 using function seq. seq is a function to construct a sequential list. seq would normally take 2 arguments. For example
+
+seq 4 [3 4] -> [4 3 4]
+seq 3 [] -> [3]
+
+In above definition, m1 and m1 is defined to be a sequential list where its first element is a given melody, its rest elements also form a sequential list. And this sequential list is defined to be #m1 or &m2.
+
+As we can see, the length of melody is infinite. But it is ok in RYC since RYC will only compute the list elements just when they are needed. We just need to take only part of it as our final result song. 
+*/
+

@@ -1,0 +1,28 @@
+song = [
+ _5 3 2 1 | (mordent _5 4) | _5 3 2 1 | _(6, 4) |
+ _6 4 3 2 | _(7, 3) 5 | 5 5 4 2 | (3, 4) |
+ _5 3 2 1 | _(5, 4) | _5 3 2 1 | _(6, 4) |
+ _6 4 3 2 | 5 5 (5, 2) | 6 5 4 2 | (1, 4) |
+ 3 3 (3, 2) | 3 3 (3, 2) | 3 5 1 2 | (3, 4) |
+ 4 4 (4, 2) | 4 3 (3, 2) | 3 2 2 1 | (2, 2) (5, 2) |
+ 3 3 (3, 2)| 3 3 (3, 2) | 3 5 1 2 | (3, 4) |
+ 4 4 (4, 2)| 4 3 (3, 2) | 5 5 4 2 | (1, 2) (chord 1 2) |
+] ;
+
+/*
+The following chord got two parameters: p is a pitch variable and d is a duration variable. The four keys in this chord have the same duration d. The second pitch is 2 higher than p. For example, if p is 1, then the second pitch is 3. Likewise, the third pitch is 5 and the fourth pitch is ^1.
+*/
+
+chord p d = {
+(p, d)
+(+ p 2, d)
+(+ p 4, d)
+(+ p 7, d) } ;
+
+/*
+Suppose p is the middle C and d is a quarter notes. The corresponding representation for the above chord in staff notation is:
+
+Similarly, the following chord got two parameters: p is a pitch variable and d is a duration variable.  The keys in a mordent happen one after another. Each key could have different pitch and different duration. In the following example, the pitch for the first key and the third key are the same p while the second key has a pitch 1 higher than the others. When it comes to duration, the duration for the first key and for the second key are the same, namely a quarter of duration d. The duration for the third key is a half of duration d. 
+*/
+
+mordent p d = [ (p, / d 4) (+ p 1, / d 4) (p, / d 2) ]

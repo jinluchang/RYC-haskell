@@ -1,0 +1,3 @@
+song = [ _melody  melody  ^melody  (^^1, 3)] ;
+
+melody = [ 1 3 5 |]
