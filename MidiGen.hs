@@ -14,8 +14,7 @@ import Evaluation
 main :: IO ()
 main = do
     args <- getArgs
-    let sourceFilename = head $ filter ((/='-') . head) args
-    str <- readFile sourceFilename
+    str <- getContents
     let prog = readProg str
         melody = eval (envGen prog) [] (Var "song")
         track = deltaList . eventList . fillDefault $ melody
