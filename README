@@ -1,0 +1,9 @@
+basic part of RYC is implemented.
+
+./ryc < source-filename
+
+will print the final melody to standard output.
+
+./ryc-midi < source-filename
+
+will generate a.mid file as output.
