@@ -250,14 +250,12 @@ pName = do
 pSpaces :: Parser ()
 pSpaces = do
     spaces
-    pComment
+    pComment <|> return ()
 
 pComment :: Parser ()
 pComment = do
-    start <- try (string "/*") <|> return ""
-    if null start
-        then return ()
-        else pCommentRest
+    _ <- try $ string "/*"
+    pCommentRest
   where
     pCommentRest = do
         c <- anyChar
