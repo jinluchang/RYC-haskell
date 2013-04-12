@@ -1,17 +1,14 @@
 module Parser where
 
 import Data.Char
+import Data.Array
 
 import Text.Parsec
 import Text.Parsec.String
 
 type Name = String
 type Number = Double
-type Defn = (Name, Func)
-
-type Env = [(Name, (Int, [Expr] -> Expr))]
-
-data Func = Func [Name] Expr
+type Defn = (Name, Expr)
 
 data Expr = Var Name
           | Boo Bool
@@ -20,7 +17,30 @@ data Expr = Var Name
           | App Expr Expr
           | Seq [Expr]
           | Par [Expr]
-          | Fun Int ([Expr] -> Expr)
+          | Lam Name Expr
+
+data ExprB = VarB Name
+           | BoundB Int
+           | BoundGB Int
+           | BooB Bool
+           | NumB Number
+           | NoteB ExprB ExprB
+           | AppB ExprB ExprB
+           | SeqB [ExprB]
+           | ParB [ExprB]
+           | LamB ExprB
+
+data ExprC = VarC Name
+           | BooC Bool
+           | NumC Number
+           | NoteC ExprC ExprC
+           | AppC ExprC ExprC
+           | SeqC [ExprC]
+           | ParC [ExprC]
+           | LamC (ExprC -> ExprC)
+
+type Env = [ExprC]
+type EnvG = Array Int ExprC
 
 -- ------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------
@@ -35,8 +55,8 @@ instance Eq Expr where
     Par xs == Par ys = xs == ys
     App _ _ == _ = error "First operand has not been fully evaluated when compared for equality"
     _ == App _ _ = error "Second operand has not been fully evaluated when compared for equality"
-    Fun _ _ == _ = error "First operand is a function when compared for equality"
-    _ == Fun _ _ = error "Second operand is a function when compared for equality"
+    Lam _ _ == _ = error "First operand is a function when compared for equality"
+    _ == Lam _ _ = error "Second operand is a function when compared for equality"
     _ == _ = False
 
 instance Show Expr where
@@ -53,7 +73,7 @@ showExpr (App e1 e2) = showFun e1 ++ " " ++ showArg e2 where
     showArg e = showAExpr e
 showExpr (Seq es) = "[" ++ unwords (map showAExpr es) ++ "]"
 showExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
-showExpr (Fun _ _) = "FUNCTION"
+showExpr (Lam x body) = "\\" ++ x ++ " -> " ++ showExpr body
 
 showAExpr :: Expr -> String
 showAExpr (Var x) = x
@@ -61,7 +81,7 @@ showAExpr (Num n) | n >= 0 = show n
                   | otherwise = "(- 0.0 " ++ show (-n) ++ ")"
 showAExpr (Boo b) = show b
 showAExpr (Note e1 e2) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
-showAExpr (Fun _ _) = "FUNCTION"
+showAExpr (Lam x body) = "(" ++ showExpr (Lam x body) ++ ")"
 showAExpr (Seq es) = "[" ++ unwords (map showAExpr es) ++ "]"
 showAExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
 showAExpr e = "(" ++ showExpr e ++ ")"
@@ -70,8 +90,10 @@ showDefns :: [Defn] -> String
 showDefns = unlines . map showDefn
 
 showDefn :: Defn -> String
-showDefn (fun, Func [] body) = fun ++ " = " ++ showExpr body
-showDefn (fun, Func vars body) = fun ++ " " ++ unwords vars ++ " = " ++ showExpr body
+showDefn (fun, defn) = go [] defn where
+    go xs (Lam x body) = go (x:xs) body
+    go [] body = fun ++ " = " ++ showExpr body
+    go xs body = fun ++ " " ++ unwords (reverse xs) ++ " = " ++ showExpr body
 
 -- ------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------
@@ -96,19 +118,36 @@ pDefn = do
     _ <- char '='
     pSpaces
     e <- pExpr
-    return $ (fun, Func vars e)
+    return $ (fun, genFun vars e)
+  where
+    genFun [] = id
+    genFun (x:xs) = Lam x . genFun xs
 
 pExpr :: Parser Expr
 pExpr = (pAExpr >>= (\e -> pSpaces >> return e)) `chainl1` return App
 
 pAExpr :: Parser Expr
-pAExpr = pVar
+pAExpr = pLam
+     <|> pVar
      <|> pNum
      <|> pOpExpr
      <|> pSeqList
      <|> pParList
      <|> try pParentheseExpr
      <|> pNote
+
+pLam :: Parser Expr
+pLam = do
+    _ <- char '\\'
+    vars <- many1 (try $ pSpaces >> pName)
+    pSpaces
+    _ <- string "->"
+    pSpaces
+    body <- pExpr
+    return $ go vars body
+  where
+    go [] = id
+    go (x:xs) = Lam x . go xs
 
 pVar :: Parser Expr
 pVar = do
@@ -174,14 +213,16 @@ pNote = do
 
 pName :: Parser Name
 pName = do
-    op <- lookAhead (try (string "==") <|> return "")
-    if op == "=="
-        then string "=="
+    op <- lookAhead (try (string "->" <|> string "==" <|> string "||" <|> string "&&") <|> return "")
+    if op /= ""
+        then if op == "->"
+            then fail "->"
+            else string op
         else do
             c <- oneOf "+-*/%><" <|> letter
             if isLetter c
                 then do
-                    cs <- many (alphaNum <|> oneOf "?")
+                    cs <- many (alphaNum <|> oneOf "_?")
                     return $ c:cs
                 else do
                     cs <- string "=" <|> return ""

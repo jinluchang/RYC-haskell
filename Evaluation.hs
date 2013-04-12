@@ -1,114 +1,136 @@
 module Evaluation where
 
+import Data.List
+import Data.Array
+import Data.Maybe
+
 import Parser
 
-compile :: Env -> Func -> (Int, [Expr] -> Expr)
-compile env (Func vs body) = (length vs, \as -> eval env (zip vs as) body)
+compile :: [Name] -> [Name] -> Expr -> ExprB
+compile envG = go where
+    go env expr = case expr of
+        Boo b -> BooB b
+        Num n -> NumB n
+        Note e1 e2 -> NoteB (go env e1) (go env e2)
+        App e1 e2 -> AppB (go env e1) (go env e2)
+        Seq es -> SeqB $ map (go env) es
+        Par es -> ParB $ map (go env) es
+        Lam x body  -> LamB $ go (x:env) body
+        Var x -> case findIndex (==x) env of
+            Just n -> BoundB n
+            Nothing -> case findIndex (==x) envG of
+                Just n -> BoundGB n
+                Nothing -> VarB x
 
-envGen :: [Defn] -> Env
-envGen defns = env where
-    (fns, fs) = unzip defns
-    env = zip fns (map (compile env) fs) ++ primitives
+eval :: ExprB -> EnvG -> Env -> ExprC
+eval expr envG = go expr where
+    go e env = case e of
+        VarB x -> VarC x
+        BooB b -> BooC b
+        NumB b -> NumC b
+        SeqB es -> SeqC $ map (\eb -> go eb env) es
+        ParB es -> ParC $ map (\eb -> go eb env) es
+        NoteB e1 e2 -> NoteC (go e1 env) (go e2 env)
+        AppB e1 e2 -> apply (go e1 env) (go e2 env)
+        BoundB n -> env !! n
+        BoundGB n -> envG ! n
+        LamB body -> LamC $ \vx -> go body (vx:env)
+    apply (LamC f) arg = f arg
+    apply fun arg = AppC fun arg
 
-eval :: Env -> [(Name, Expr)] -> Expr -> Expr
-eval env bs expr = go expr where
-    apply (Fun n f) a = case n of
-        0 -> error "function do not accept any argument"
-        1 -> go $ f [a]
-        _ -> Fun (n-1) $ \as -> f (a:as)
-    apply f a = error $ "cannot apply " ++ showExpr f ++ " to " ++ showExpr a
-    go (App e1 e2) = apply (go e1) (go e2)
-    go (Var x) = case lookup x bs of
-        Just e -> go e
-        Nothing -> case lookup x env of
-            Nothing -> error $ "Unbounded variable: " ++ x
-            Just (n, f) -> go $ Fun n f
-    go (Note e1 e2) = Note (go e1) (go e2)
-    go (Seq es) = Seq $ map go es
-    go (Par es) = Par $ map go es
-    go (Fun 0 f) = go $ f []
-    go x = x
+envGen :: [Defn] -> EnvG
+envGen defns = envG where
+    (fns, fs) = unzip $ ("song", fromJust $ lookup "song" defns) : filter ((/= "song") . fst) defns
+    envG = listArray (0, length defns + length primitives - 1) $
+        (map (\eb -> eval eb envG []) $ map (compile (fns ++ map fst primitives) []) fs) ++ map snd primitives
+
+variablePadding :: ExprC -> Expr
+variablePadding = go names where
+    go ns expr = case expr of
+        VarC x -> Var x
+        BooC b -> Boo b
+        NumC n -> Num n
+        NoteC e1 e2 -> Note (go ns e1) (go ns e2)
+        AppC e1 e2 -> App (go ns e1) (go ns e2)
+        SeqC es -> Seq $ map (go ns) es
+        ParC es -> Par $ map (go ns) es
+        LamC f -> Lam (head ns) $ go (tail ns) $ f (VarC $ head ns)
+    names = map ("$var"++) $ map show ([0..] :: [Int])
 
 -- ------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------
 
-primitives :: Env
+primitives :: [(Name, ExprC)]
 primitives =
-    [ ("^"      , (1, liftSingleFunc $ mapMelody $ raise 12))
-    , ("_"      , (1, liftSingleFunc $ mapMelody $ raise (-12)))
-    , ("#"      , (1, liftSingleFunc $ mapMelody $ raise 1))
-    , ("&"      , (1, liftSingleFunc $ mapMelody $ raise (-1)))
-    , ("/"      , (2, \[Num n1, Num n2] -> Num $ n1 / n2))
-    , ("*"      , (2, \[Num n1, Num n2] -> Num $ n1 * n2))
-    , ("+"      , (2, \[Num n1, Num n2] -> Num $ n1 + n2))
-    , ("-"      , (2, \[Num n1, Num n2] -> Num $ n1 - n2))
-    , (">"      , (2, \[Num n1, Num n2] -> Boo $ n1 > n2))
-    , ("<"      , (2, \[Num n1, Num n2] -> Boo $ n1 < n2))
-    , (">="     , (2, \[Num n1, Num n2] -> Boo $ n1 >= n2))
-    , ("<="     , (2, \[Num n1, Num n2] -> Boo $ n1 <= n2))
-    , ("=="     , (2, \[e1,e2] -> Boo $ e1 == e2))
-    , ("/="     , (2, \[e1,e2] -> Boo $ e1 /= e2))
-    , ("not"    , (1, \[Boo b] -> Boo $ not b))
-    , ("or"     , (2, \[Boo b1, Boo b2] -> Boo $ b1 || b2))
-    , ("and"    , (2, \[Boo b1, Boo b2] -> Boo $ b1 && b2))
-    , ("nil?"   , (1, liftSingleFunc isNil))
-    , ("par?"   , (1, liftSingleFunc isPar))
-    , ("seq?"   , (1, liftSingleFunc isSeq))
-    , ("car"    , (1, liftSingleFunc car))
-    , ("cdr"    , (1, liftSingleFunc cdr))
-    , ("par"    , (2, parL))
-    , ("seq"    , (2, seqL))
-    , ("time"   , (1, \[e] -> Num $ getTime e))
-    , ("pitch"  , (1, \[e] -> Num $ getPitch e))
-    , ("if"     , (3, \[Boo b, e1, e2] -> if b then e1 else e2)) ]
+    [ ("^"      , LamC $ mapMelody $ raise 12)
+    , ("_"      , LamC $ mapMelody $ raise (-12))
+    , ("#"      , LamC $ mapMelody $ raise 1)
+    , ("&"      , LamC $ mapMelody $ raise (-1))
+    , ("/"      , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 / n2)
+    , ("*"      , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 * n2)
+    , ("+"      , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 + n2)
+    , ("-"      , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 - n2)
+    , (">"      , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 > n2)
+    , ("<"      , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 < n2)
+    , (">="     , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 >= n2)
+    , ("<="     , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 <= n2)
+    , ("=="     , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 == n2)
+    , ("/="     , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 /= n2)
+    , ("not"    , LamC $ \(BooC b) -> BooC $ not b)
+    , ("||"     , LamC $ \(BooC b1) -> LamC $ \(BooC b2) -> BooC $ b1 || b2)
+    , ("&&"     , LamC $ \(BooC b1) -> LamC $ \(BooC b2) -> BooC $ b1 && b2)
+    , ("nil?"   , LamC $ isNil)
+    , ("par?"   , LamC $ isPar)
+    , ("seq?"   , LamC $ isSeq)
+    , ("car"    , LamC $ car)
+    , ("cdr"    , LamC $ cdr)
+    , ("par"    , LamC $ \x -> LamC $ \parxs -> parL x parxs)
+    , ("seq"    , LamC $ \x -> LamC $ \seqxs -> seqL x seqxs)
+    , ("time"   , LamC $ \e -> NumC $ getTime e)
+    , ("pitch"  , LamC $ \e -> NumC $ getPitch e)
+    , ("if"     , LamC $ \(BooC b) -> LamC $ \e1 -> LamC $ \e2 -> if b then e1 else e2) ]
 
-liftSingleFunc :: (Expr -> Expr) -> [Expr] -> Expr
-liftSingleFunc f [e] = f e
-liftSingleFunc _ _ = error "number of argument is not correct in liftSingleFunc"
-
-parL :: [Expr] -> Expr
-parL [x, parxs] = Par (x:xs) where
+parL :: ExprC -> ExprC -> ExprC
+parL x parxs = ParC $ x:xs where
     xs = case parxs of
-        Par ys -> ys
+        ParC ys -> ys
         _ -> error "par: second argument is not par list"
-parL _ = error "par: number of argument is not correct"
 
-seqL :: [Expr] -> Expr
-seqL [x, seqxs] = Seq (x:xs) where
+seqL :: ExprC -> ExprC -> ExprC
+seqL x seqxs = SeqC $ x:xs where
     xs = case seqxs of
-        Seq ys -> ys
+        SeqC ys -> ys
         _ -> error "seq: second argument is not par list"
-seqL _ = error "seq: number of argument is not correct"
 
-car :: Expr -> Expr
-car (Par (x:_)) = x
-car (Seq (x:_)) = x
+car :: ExprC -> ExprC
+car (ParC (x:_)) = x
+car (SeqC (x:_)) = x
 car _ = error "car: List is empty"
 
-cdr :: Expr -> Expr
-cdr (Par (_:xs)) = Par xs
-cdr (Seq (_:xs)) = Seq xs
+cdr :: ExprC -> ExprC
+cdr (ParC (_:xs)) = ParC xs
+cdr (SeqC (_:xs)) = SeqC xs
 cdr _ = error "cdr: List is empty"
 
-isNil :: Expr -> Expr
-isNil (Par []) = Boo True
-isNil (Seq []) = Boo True
-isNil _ = Boo False
+isNil :: ExprC -> ExprC
+isNil (ParC []) = BooC True
+isNil (SeqC []) = BooC True
+isNil _ = BooC False
 
-isPar :: Expr -> Expr
-isPar (Par []) = Boo True
-isPar _ = Boo False
+isPar :: ExprC -> ExprC
+isPar (ParC []) = BooC True
+isPar _ = BooC False
 
-isSeq :: Expr -> Expr
-isSeq (Seq []) = Boo True
-isSeq _ = Boo False
+isSeq :: ExprC -> ExprC
+isSeq (SeqC []) = BooC True
+isSeq _ = BooC False
 
-raise :: Int -> Expr -> Expr
+raise :: Int -> ExprC -> ExprC
 raise k = mapMelody go where
-    go (Note (Num n) t) = Note (Num (loop k n)) t
-    go (Num n) = Num (loop k n)
-    go _ = error "change pitch is not allowed for thish argument"
+    go (NoteC (NumC n) t) = NoteC (NumC (loop k n)) t
+    go (NumC n) = NumC (loop k n)
+    go ec = error $ "change pitch is not allowed for this argument: " ++ showExpr (variablePadding ec)
     loop n | n > 0 = r . loop (n-1)
            | n < 0 = l . loop (n+1)
            | otherwise = id
@@ -145,19 +167,19 @@ raise k = mapMelody go where
         | n < 0 = l (n+8) - 8
     l n = error $ "Not a note " ++ show n
 
-getTime :: Expr -> Number
-getTime (Seq es) = sum $ map getTime es
-getTime (Par es) = maximum $ map getTime es
-getTime (Num _) = 1
-getTime (Note _ (Num t)) = t
+getTime :: ExprC -> Number
+getTime (SeqC es) = sum $ map getTime es
+getTime (ParC es) = maximum $ map getTime es
+getTime (NumC _) = 1
+getTime (NoteC _ (NumC t)) = t
 getTime _ = error "argument to time is not valid"
 
-getPitch :: Expr -> Number
-getPitch (Num n) = n
-getPitch (Note (Num n) _) = n
+getPitch :: ExprC -> Number
+getPitch (NumC n) = n
+getPitch (NoteC (NumC n) _) = n
 getPitch _ = error "argument to pitch is not valid"
 
-mapMelody :: (Expr -> Expr) -> Expr -> Expr
-mapMelody f (Seq es) = Seq $ map (mapMelody f) es
-mapMelody f (Par es) = Par $ map (mapMelody f) es
+mapMelody :: (ExprC -> ExprC) -> ExprC -> ExprC
+mapMelody f (SeqC es) = SeqC $ map (mapMelody f) es
+mapMelody f (ParC es) = ParC $ map (mapMelody f) es
 mapMelody f e = f e

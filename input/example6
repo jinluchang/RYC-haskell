@@ -8,7 +8,7 @@ This is just a simple sequential list which we have seen before.
 */
 
 timeBound t xs =
-    if (or (nil? xs)
+    if (|| (nil? xs)
            (< t (time (car xs))))
         []
         (seq (car xs)

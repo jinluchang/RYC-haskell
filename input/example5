@@ -1,8 +1,8 @@
-song = [    
+song = [
 /* every line of song is a randomly selected note and triad combination. After listening to the midi file produced, the composer could determine whether he or she likes it*/
-{(MajorTriad  1) (MinorTriad 3) (MinorTriad &5) (MajorTriad &7)}
+[(MajorTriad  1) (MinorTriad 3) (MinorTriad &5) (MajorTriad &7)]
 /*Noticing that (MajorTriad 1) is an application of function MajorTriad and it takes 1 as parameter of type note*/
-	{(MajorTriad  #1) (MajorTriad 4) (MinorTriad &6) (MinorTriad 6)}
+[(MajorTriad  #1) (MajorTriad 4) (MinorTriad &6) (MinorTriad 6)]
 	/*Noticing that # stands for sharp symbol, & stands for flat symbol*/
 ];
 
@@ -13,25 +13,36 @@ song = [
 /* raise is a built-in func that increase n semitone, which can be referred to later chapter for its implemetation*/
 MajorThird p = raise 4 p ;   /* MajorThird returns a major third note over p*/
 MinorThird p = raise 3 p ;   /* MajorThird returns a minor third note over p*/
-MajorTriad p d = {
-(p, d)
-(MajorThird p, d)
-(MinorThird (MajorThird p), d)
+MajorTriad p = {
+p
+(MajorThird p)
+(MinorThird (MajorThird p))
 } ;
 
-MinorTriad p d = { 
-(p, d)
-(MinorThird p, d)
-(MajorThird (MinorThird p), d)
-};
-AugmentedTriad p d = {
-(p, d)
-(MajorThird p, d)
-(MajorThird (MajorThird p), d)
+MinorTriad p = {
+p
+(MinorThird p)
+(MajorThird (MinorThird p))
+} ;
+AugmentedTriad p = {
+p
+(MajorThird p)
+(MajorThird (MajorThird p))
 } ;
 DimnishedChord p d = {
-(p, d)
-(MinorThird p, d)
-(MinorThird (MinorThird p), d)
-}
+p
+(MinorThird p)
+(MinorThird (MinorThird p))
+} ;
 
+raise n p = if (< n 0)
+    (lower (- 0 n) p)
+    (if (== 0 n)
+        p
+        (raise (- n 1) #p)) ;
+
+lower n p = if (< n 0)
+    (raise (- 0 n) p)
+    (if (== 0 n)
+        p
+        (lower (- n 1) &p))

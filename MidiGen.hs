@@ -2,6 +2,7 @@ module Main where
 
 import Data.List
 import Data.Function
+import Data.Array
 import Control.Monad
 
 import System.Environment
@@ -16,7 +17,7 @@ main = do
     args <- getArgs
     str <- getContents
     let prog = readProg str
-        melody = eval (envGen prog) [] (Var "song")
+        melody = variablePadding $ envGen prog ! 0
         track = deltaList . eventList . fillDefault $ melody
     when ("-v" `elem` args) $ do
             putStrLn str
@@ -73,6 +74,8 @@ getDuration (Par es) = maximum $ map getDuration es
 getDuration _ = error "Not a note"
 
 fillDefault :: Expr -> Expr
-fillDefault = mapMelody go where
-    go p@(Num _) = Note p (Num 1)
-    go x = x
+fillDefault expr = case expr of
+    Num n -> Note (Num n) (Num 1)
+    Seq es -> Seq $ map fillDefault es
+    Par es -> Par $ map fillDefault es
+    _ -> expr
