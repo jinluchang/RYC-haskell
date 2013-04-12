@@ -1,6 +1,7 @@
 module Parser where
 
 import Data.Char
+import Data.List
 import Data.Array
 
 import Text.Parsec
@@ -17,6 +18,7 @@ data Expr = Var Name
           | App Expr Expr
           | Seq [Expr]
           | Par [Expr]
+          | Let [Defn] Expr
           | Lam Name Expr
 
 data ExprB = VarB Name
@@ -29,6 +31,7 @@ data ExprB = VarB Name
            | SeqB [ExprB]
            | ParB [ExprB]
            | LamB ExprB
+           | LetB [ExprB] ExprB
 
 data ExprC = VarC Name
            | BooC Bool
@@ -74,6 +77,7 @@ showExpr (App e1 e2) = showFun e1 ++ " " ++ showArg e2 where
 showExpr (Seq es) = "[" ++ unwords (map showAExpr es) ++ "]"
 showExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
 showExpr (Lam x body) = "\\" ++ x ++ " -> " ++ showExpr body
+showExpr (Let ds e) = "let " ++ intercalate " ; " (map showDefn ds) ++ " in " ++ showExpr e
 
 showAExpr :: Expr -> String
 showAExpr (Var x) = x
@@ -87,7 +91,7 @@ showAExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
 showAExpr e = "(" ++ showExpr e ++ ")"
 
 showDefns :: [Defn] -> String
-showDefns = unlines . map showDefn
+showDefns = (++"\n") . intercalate " ;\n" . map showDefn
 
 showDefn :: Defn -> String
 showDefn (fun, defn) = go [] defn where
@@ -106,9 +110,12 @@ readProg str = case parse pProg (take 10 str) str of
 
 pProg :: Parser [Defn]
 pProg = do
-    prog <- (pSpaces >> pDefn >>= \d -> pSpaces >> return d) `sepBy1` char ';'
+    prog <- pDefns
     eof
     return prog
+
+pDefns :: Parser [Defn]
+pDefns = (pSpaces >> pDefn >>= \d -> pSpaces >> return d) `sepBy1` char ';'
 
 pDefn :: Parser Defn
 pDefn = do
@@ -127,7 +134,8 @@ pExpr :: Parser Expr
 pExpr = (pAExpr >>= (\e -> pSpaces >> return e)) `chainl1` return App
 
 pAExpr :: Parser Expr
-pAExpr = pLam
+pAExpr = pLet
+     <|> pLam
      <|> pVar
      <|> pNum
      <|> pOpExpr
@@ -135,6 +143,15 @@ pAExpr = pLam
      <|> pParList
      <|> try pParentheseExpr
      <|> pNote
+
+pLet :: Parser Expr
+pLet = do
+    _ <- try $ string "let"
+    defns <- pDefns
+    _ <- string "in"
+    pSpaces
+    expr <- pExpr
+    return $ Let defns expr
 
 pLam :: Parser Expr
 pLam = do
@@ -213,11 +230,13 @@ pNote = do
 
 pName :: Parser Name
 pName = do
-    op <- lookAhead (try (string "->" <|> string "==" <|> string "||" <|> string "&&") <|> return "")
+    bad <- lookAhead (try (string "->" <|> string "let" <|> string "in") <|> return "")
+    if bad /= ""
+        then fail "Keywords"
+        else return ()
+    op <- lookAhead (try (string "==" <|> string "||" <|> string "&&") <|> return "")
     if op /= ""
-        then if op == "->"
-            then fail "->"
-            else string op
+        then string op
         else do
             c <- oneOf "+-*/%><" <|> letter
             if isLetter c

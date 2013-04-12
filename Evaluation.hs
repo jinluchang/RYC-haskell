@@ -15,6 +15,8 @@ compile envG = go where
         App e1 e2 -> AppB (go env e1) (go env e2)
         Seq es -> SeqB $ map (go env) es
         Par es -> ParB $ map (go env) es
+        Let ds e -> LetB (map (go env' . snd) ds) (go env' e)
+            where env' = map fst ds ++ env
         Lam x body  -> LamB $ go (x:env) body
         Var x -> case findIndex (==x) env of
             Just n -> BoundB n
@@ -27,11 +29,13 @@ eval expr envG = go expr where
     go e env = case e of
         VarB x -> VarC x
         BooB b -> BooC b
-        NumB b -> NumC b
+        NumB n -> NumC n
         SeqB es -> SeqC $ map (\eb -> go eb env) es
         ParB es -> ParC $ map (\eb -> go eb env) es
         NoteB e1 e2 -> NoteC (go e1 env) (go e2 env)
         AppB e1 e2 -> apply (go e1 env) (go e2 env)
+        LetB ds e' -> go e' env'
+            where env' = map (\eb -> go eb env') ds ++ env
         BoundB n -> env !! n
         BoundGB n -> envG ! n
         LamB body -> LamC $ \vx -> go body (vx:env)
