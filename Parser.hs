@@ -3,12 +3,13 @@ module Parser where
 import Data.Char
 import Data.List
 import Data.Array
+import Data.Ratio
 
 import Text.Parsec
 import Text.Parsec.String
 
 type Name = String
-type Number = Double
+type Number = Rational
 type Defn = (Name, Expr)
 
 data Expr = Var Name
@@ -71,8 +72,9 @@ instance Show Expr where
 showExpr :: Expr -> String
 showExpr (Var x) = showAExpr (Var x)
 showExpr (Boo b) = showAExpr (Boo b)
-showExpr (Num n) | n >= 0 = show n
-                 | otherwise = "- 0.0 " ++ show (-n)
+showExpr (Num n) | n < 0 = "- 0 " ++ showAExpr (Num (-n))
+                 | 1000 `mod` denominator n /= 0 = "/ " ++ show (numerator n) ++ " " ++ show (denominator n)
+                 | otherwise = showAExpr (Num n)
 showExpr (Chr c) = showAExpr (Chr c)
 showExpr (Note e1 e2) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
 showExpr (App e1 e2) = showFun e1 ++ " " ++ showArg e2 where
@@ -87,8 +89,10 @@ showAExpr :: Expr -> String
 showAExpr (Var x) = x
 showAExpr (Boo True) = "true"
 showAExpr (Boo False) = "false"
-showAExpr (Num n) | n >= 0 = show n
-                  | otherwise = "(- 0.0 " ++ show (-n) ++ ")"
+showAExpr (Num n) | n < 0 = "(" ++ showExpr (Num n) ++ ")"
+                  | denominator n == 1 = show $ numerator n
+                  | 1000 `mod` denominator n == 0 = show $ (realToFrac :: Number -> Double) n
+                  | otherwise = "(" ++ showExpr (Num n) ++ ")"
 showAExpr (Chr c) = show c
 showAExpr (Seq cs) | all isC cs = show $ map getC cs where
     isC (Chr _) = True
@@ -213,8 +217,8 @@ pVar = do
 pNum :: Parser Expr
 pNum = do
     prefix <- many1 digit
-    suffix <- (char '.' >> many1 digit) <|> return ""
-    return $ Num . realToFrac . (read :: String -> Double) $ prefix ++ suffix
+    suffix <- (char '.' >> many1 digit >>= \cs -> return $ '.':cs) <|> return ""
+    return $ Num . (\x -> approxRational x (x*1.0E-10)) . (read :: String -> Double) $ prefix ++ suffix
 
 pOpExpr :: Parser Expr
 pOpExpr = do
