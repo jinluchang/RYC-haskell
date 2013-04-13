@@ -130,7 +130,7 @@ pProg = do
     return prog
 
 pDefns :: Parser [Defn]
-pDefns = (pSpaces >> pDefn >>= \d -> pSpaces >> return d) `sepBy1` char ';'
+pDefns = padSpaces pDefn `sepBy1` char ';'
 
 pDefn :: Parser Defn
 pDefn = do
@@ -158,8 +158,7 @@ pAExpr = pLet
      <|> pOpExpr
      <|> pSeqList
      <|> pParList
-     <|> try pParentheseExpr
-     <|> pNote
+     <|> pParentheseExpr
 
 pChr :: Parser Expr
 pChr = do
@@ -252,24 +251,12 @@ pParList = do
 pParentheseExpr :: Parser Expr
 pParentheseExpr = do
     _ <- char '('
-    pSpaces
-    e <- pExpr
-    pSpaces
+    es <- padSpaces pExpr `sepBy1` char ','
     _ <- char ')'
-    return e
-
-pNote :: Parser Expr
-pNote = do
-    _ <- char '('
-    pSpaces
-    e1 <- pExpr
-    pSpaces
-    _ <- char ','
-    pSpaces
-    e2 <- pExpr
-    pSpaces
-    _ <- char ')'
-    return $ Note e1 e2
+    case es of
+        [e] -> return e
+        [e1,e2] -> return $ Note e1 e2
+        _ -> fail "invalid parenthese expression"
 
 pName :: Parser Name
 pName = do
@@ -289,6 +276,13 @@ pName = do
                 else do
                     cs <- string "=" <|> return ""
                     return $ c:cs
+
+padSpaces :: Parser a -> Parser a
+padSpaces p = do
+    pSpaces
+    x <- p
+    pSpaces
+    return x
 
 pSpaces :: Parser ()
 pSpaces = do

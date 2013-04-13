@@ -1,6 +1,4 @@
 all : ryc ryc-midi
-	# ./ryc-midi < input/example4
-	# timidity a.mid
 
 ryc : *.hs
 	ghc -Wall -O2 -o ryc Interpreter.hs
