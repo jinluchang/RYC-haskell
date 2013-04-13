@@ -1,0 +1,56 @@
+song = search-queen 8 ;
+
+search-queen size =
+	let ns = genListFromToStep 1 size 1 ;
+		go n xs = if (== n size)
+			[xs]
+			(concat (map (go (+ 1 n)) 
+					(map (\x -> seq x xs)
+					(filter (valid-queen? xs) ns))))
+	in go 0 [] ;
+
+valid-queen? xs x =
+	let go n rs = if (nil? rs)
+		true
+		(let r' = car rs ; rs' = cdr rs
+		 in && (/= x r')
+		   (&& (/= x (+ r' n))
+		   (&& (/= x (- r' n))
+		       (go (+ 1 n) rs'))))
+	in go 1 xs ; 
+
+genListFromToStep from to step =
+	let go n = if (> n to)
+		[]
+		(seq n (go (+ n step)))
+	in go from ;
+
+length xs = if (nil? xs)
+	0
+	(+ 1 (length (cdr xs))) ;
+
+append = appendSeq ;
+appendSeq xs ys = if (nil? xs)
+	ys
+	(let x' = car xs ; xs' = cdr xs
+	 in seq x' (appendSeq xs' ys)) ;
+
+concat = concatSeq ;
+concatSeq xs = if (nil? xs)
+	[]
+	(let x' = car xs ; xs' = cdr xs
+	 in appendSeq x' (concatSeq xs')) ;
+
+map = mapSeq ;
+mapSeq f xs = if (nil? xs)
+	[]
+	(let x' = car xs ; xs' = cdr xs
+	 in seq (f x') (mapSeq f xs')) ;
+
+filter = filterSeq ;
+filterSeq p xs = if (nil? xs)
+	[]
+	(let x' = car xs ; xs' = cdr xs
+	 in if (p x')
+	 	(seq x' (filterSeq p xs'))
+		(filterSeq p xs'))
