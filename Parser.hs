@@ -1,6 +1,5 @@
 module Parser where
 
-import Data.Char
 import Data.List
 import Data.Array
 import Data.Ratio
