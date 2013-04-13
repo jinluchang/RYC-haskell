@@ -94,6 +94,7 @@ showAExpr (Num n) | n < 0 = "(" ++ showExpr (Num n) ++ ")"
                   | 1000 `mod` denominator n == 0 = show $ (realToFrac :: Number -> Double) n
                   | otherwise = "(" ++ showExpr (Num n) ++ ")"
 showAExpr (Chr c) = show c
+showAExpr (Seq []) = "[]"
 showAExpr (Seq cs) | all isC cs = show $ map getC cs where
     isC (Chr _) = True
     isC _ = False
@@ -268,14 +269,9 @@ pName = do
     if op /= ""
         then string op
         else do
-            c <- oneOf "+-*/%><" <|> letter
-            if isLetter c
-                then do
-                    cs <- many (alphaNum <|> oneOf "_?")
-                    return $ c:cs
-                else do
-                    cs <- string "=" <|> return ""
-                    return $ c:cs
+            c <- oneOf "+-*/%<>" <|> letter
+            cs <- many (alphaNum <|> oneOf "=_?\'+-*/%<>")
+            return $ c:cs
 
 padSpaces :: Parser a -> Parser a
 padSpaces p = do
