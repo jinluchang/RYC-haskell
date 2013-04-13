@@ -160,16 +160,28 @@ pAExpr = pLet
 pChr :: Parser Expr
 pChr = do
     _ <- char '\''
-    c <- many $ noneOf "\'"
-    _ <- char '\''
-    return $ Chr . read $ "\'" ++ c ++ "\'"
+    str <- pCharSpecial '\''
+    return $ Chr . (\[c] -> c) $ str
 
 pStr :: Parser Expr
 pStr = do
     _ <- char '\"'
-    str <- many $ noneOf "\""
-    _ <- char '\"'
-    return $ Seq . map Chr . read $ "\"" ++ str ++ "\""
+    str <- pCharSpecial '\"'
+    return $ Seq . map Chr $ str
+
+pCharSpecial :: Char -> Parser String
+pCharSpecial t = go where
+    go = do
+        c <- anyChar
+        case c of
+            '\\' -> do
+                c' <- anyChar
+                cs <- go
+                return $ read ("\'\\" ++ [c'] ++ "\'") : cs
+            _ | c == t -> return ""
+              | otherwise -> do
+                cs <- go
+                return $ c : cs
 
 pLet :: Parser Expr
 pLet = do
