@@ -23,6 +23,11 @@ mordent p d = [ (p, / d 4) (+ p 1, / d 4) (p, / d 2) ] ;
 The following short melodies are used as parameter for the melody m2.
 */
 
+a = [_1 _3 __5 _3 |] ;
+b = [__6 _1 __4 _1 |] ;
+c = [ __7 _2 __5 _2 |] ;
+e = [ __7 _2 _2 _2 |] ;
+
 /*
 The corresponding representation for the above short melodies in staff notation is:
 
@@ -32,16 +37,13 @@ The following melody function takes in four short melodies as its parameters and
 
 m2 a b c d =
 	let
-		a = [_1 _3 __5 _3 |];
-		b = [__6 _1 __4 _1 |];
-		c = [ __7 _2 __5 _2 |];
-		e = [ __7 _2 _2 _2 |]
+		tmp = [ (1, / 1 2) (1, / 1 2) ]
 	in
 		[
 		a a a b
 		b c c a
 		a a a b
-		b c d 1 (1, / 1 2) (1, / 1 2) 1 1 |
+		b c d 1 tmp 1 1 |
 		a a a a
 		b a a e
 		a a a a

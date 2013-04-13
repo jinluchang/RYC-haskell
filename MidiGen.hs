@@ -15,15 +15,32 @@ import Evaluation
 main :: IO ()
 main = do
     args <- getArgs
-    str <- getContents
+    str <- if "-v" /= args !! 0
+        then readFile $ args !! 0
+        else readFile $ args !! 1
     let prog = readProg str
         melody = variablePadding $ envGen prog ! 0
         track = deltaList . eventList . fillDefault $ melody
-    when ("-v" `elem` args) $ do
-            putStrLn str
-            putStrLn $ showDefns prog
-            print $ melody
-            mapM_ print $ track 
+    when ("-v" == args !! 0) $ do
+        putStrLn "-----------------------------------------------------------------------------------------"
+        putStrLn "Original Program ------------------------------------------------------------------------"
+        putStrLn ""
+        putStrLn str
+        putStrLn ""
+        putStrLn "-----------------------------------------------------------------------------------------"
+        putStrLn "Parsed Program --------------------------------------------------------------------------"
+        putStrLn ""
+        putStrLn $ showDefns prog
+        putStrLn ""
+        putStrLn "-----------------------------------------------------------------------------------------"
+        putStrLn "Result ----------------------------------------------------------------------------------"
+        putStrLn ""
+        putStrLn $ "song = " ++ show melody
+        putStrLn ""
+        putStrLn "-----------------------------------------------------------------------------------------"
+        putStrLn "Sequence --------------------------------------------------------------------------------"
+        putStrLn ""
+        mapM_ print $ track
     exportFile "a.mid" $ Midi
         { fileType = SingleTrack
         , timeDiv = TicksPerBeat 230
@@ -44,7 +61,7 @@ eventList melody = go 0 melody where
     go start (Par es) = concatMap (go start) es
     go _     (Seq []) = []
     go start (Seq (e:es)) = go start e ++ go (start + getDuration e) (Seq es)
-    go _ _ = error $ "Final result is not a melody"
+    go _ e = error $ "Final result is not a melody : " ++ showExpr e
 
 getKey :: Expr -> Maybe Int
 getKey (Note (Num x) _) = liftM (43+) $ go x
