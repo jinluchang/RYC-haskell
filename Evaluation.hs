@@ -92,8 +92,8 @@ primitives =
     , ("=="       , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 == n2)
     , ("/="       , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 /= n2)
     , ("not"      , LamC $ \(BooC b) -> BooC $ not b)
-    , ("||"       , LamC $ \(BooC b1) -> LamC $ \(BooC b2) -> BooC $ b1 || b2)
-    , ("&&"       , LamC $ \(BooC b1) -> LamC $ \(BooC b2) -> BooC $ b1 && b2)
+    , ("or"       , LamC $ \b1 -> LamC $ \b2 -> orC b1 b2)
+    , ("and"      , LamC $ \b1 -> LamC $ \b2 -> andC b1 b2)
     , ("chr"      , LamC $ \(NumC n) -> ChrC . chr $ round n)
     , ("ord"      , LamC $ \(ChrC c) -> NumC . fi $ ord c)
     , ("getArgs"  , getArgsC)
@@ -111,6 +111,16 @@ primitives =
     , ("if"       , LamC $ \(BooC b) -> LamC $ \e1 -> LamC $ \e2 -> if b then e1 else e2)
     , ("true"     , BooC True)
     , ("false"    , BooC False) ]
+
+andC :: ExprC -> ExprC -> ExprC
+andC (BooC b1) b2c = BooC $ b1 && b2 where
+    BooC b2 = b2c
+andC _ _ = error $ "and : not boolean"
+
+orC :: ExprC -> ExprC -> ExprC
+orC (BooC b1) b2c = BooC $ b1 || b2 where
+    BooC b2 = b2c
+orC _ _ = error $ "or : not boolean"
 
 parL :: ExprC -> ExprC -> ExprC
 parL x parxs = ParC $ x:xs where
