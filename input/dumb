@@ -1,0 +1,4 @@
+song = do
+    ("Current Argument is : " getArgs)
+    (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
+	(contents-of-current-file-is (readFile "dumb"))

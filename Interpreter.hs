@@ -5,6 +5,8 @@ import Data.Array
 
 import System.Console.GetOpt
 import System.Environment
+import System.Directory
+import System.FilePath
 
 import Parser
 import Evaluation
@@ -15,7 +17,7 @@ data Flag
 
 options :: [OptDescr Flag]
 options =
-    [ Option "v"   ["verbose"]    (NoArg Verbose)  "show many intermediate information" ]
+    [ Option "v"   ["verbose"]    (NoArg Verbose) "show many intermediate information" ]
 
 compileOpts :: [String] -> ([Flag], [String])
 compileOpts argv = case getOpt Permute options argv of
@@ -26,8 +28,9 @@ main :: IO ()
 main = do
     (flags, args) <- liftM compileOpts $ getArgs
     strs <- mapM readFile args
+    setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
-        melody = variablePadding (envGen prog ! 0)
+        melody = variablePadding $ envGen prog ! 0
     when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"
         putStrLn "Original Program ------------------------------------------------------------------------"

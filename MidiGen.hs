@@ -6,9 +6,10 @@ import Data.Array
 import Data.Maybe
 import Control.Monad
 
-import System.FilePath
 import System.Console.GetOpt
 import System.Environment
+import System.Directory
+import System.FilePath
 
 import Codec.Midi
 
@@ -39,6 +40,7 @@ main :: IO ()
 main = do
     (flags, args) <- liftM compileOpts $ getArgs
     strs <- mapM readFile args
+    setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
         melody = variablePadding $ envGen prog ! 0
         track = deltaList . eventList . fillDefault $ melody
