@@ -27,6 +27,7 @@ compileOpts argv = case getOpt Permute options argv of
 main :: IO ()
 main = do
     (flags, args) <- liftM compileOpts $ getArgs
+    if args == [] then error "No input files" else return ()
     strs <- mapM readFile args
     setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs

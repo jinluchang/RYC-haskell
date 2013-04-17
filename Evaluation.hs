@@ -4,6 +4,7 @@ import Data.List
 import Data.Array
 import Data.Maybe
 import Data.Char
+import Control.DeepSeq
 
 import System.Environment
 import System.IO.Unsafe
@@ -82,19 +83,19 @@ primitives =
     , ("_"          , LamC $ mapMelody $ raise (-12))
     , ("#"          , LamC $ mapMelody $ raise 1)
     , ("&"          , LamC $ mapMelody $ raise (-1))
-    , ("/"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) / (getNumC n2))
-    , ("*"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) * (getNumC n2))
-    , ("+"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) + (getNumC n2))
-    , ("-"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) - (getNumC n2))
-    , (">"          , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) > (getNumC n2))
-    , ("<"          , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) < (getNumC n2))
-    , (">="         , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) >= (getNumC n2))
-    , ("<="         , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) <= (getNumC n2))
+    , ("/"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ getNumC n1 / getNumC n2)
+    , ("*"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ getNumC n1 * getNumC n2)
+    , ("+"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ getNumC n1 + getNumC n2)
+    , ("-"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ getNumC n1 - getNumC n2)
+    , (">"          , LamC $ \n1 -> LamC $ \n2 -> BooC $ getNumC n1 > getNumC n2)
+    , ("<"          , LamC $ \n1 -> LamC $ \n2 -> BooC $ getNumC n1 < getNumC n2)
+    , (">="         , LamC $ \n1 -> LamC $ \n2 -> BooC $ getNumC n1 >= getNumC n2)
+    , ("<="         , LamC $ \n1 -> LamC $ \n2 -> BooC $ getNumC n1 <= getNumC n2)
     , ("=="         , LamC $ \e1 -> LamC $ \e2 -> BooC $ e1 == e2)
     , ("/="         , LamC $ \e1 -> LamC $ \e2 -> BooC $ e1 /= e2)
     , ("not"        , LamC $ \(BooC b) -> BooC $ not b)
-    , ("or"         , LamC $ \b1 -> LamC $ \b2 -> BooC $ orC b1 b2)
-    , ("and"        , LamC $ \b1 -> LamC $ \b2 -> BooC $ andC b1 b2)
+    , ("or"         , LamC $ \b1 -> LamC $ \b2 -> BooC $ getBooC b1 || getBooC b2)
+    , ("and"        , LamC $ \b1 -> LamC $ \b2 -> BooC $ getBooC b1 && getBooC b2)
     , ("chr"        , LamC $ \n -> ChrC . chr . round $ getNumC n)
     , ("ord"        , LamC $ \c -> NumC . fi . ord $ getChrC c)
     , ("getArgs"    , getArgsC)
@@ -113,43 +114,40 @@ primitives =
     , ("true"       , BooC True)
     , ("false"      , BooC False)
     , ("show"       , LamC $ \e -> SeqC . map ChrC . showExprC $ e )
-    , ("trace"      , LamC $ \e -> trace (showExprC e) $ LamC $ \e1 -> e1) ]
+    , ("read"       , LamC $ \e -> convertC . readExpr . map getChrC $ getSeqC e)
+    , ("force"      , LamC $ \e -> deepseq e $ LamC id)
+    , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id) ]
 
-andC :: ExprC -> ExprC -> Bool
-andC (BooC b1) b2c = b1 && b2 where
-    b2 = case b2c of
-        BooC b2' -> b2'
-        e -> error $ "and : not boolean : " ++ showExprC e
-andC e _ = error $ "and : not boolean : " ++ showExprC e
-
-orC :: ExprC -> ExprC -> Bool
-orC (BooC b1) b2c = b1 || b2 where
-    b2 = case b2c of
-        BooC b2' -> b2'
-        e -> error $ "or : not boolean : " ++ showExprC e
-orC e _ = error $ "or : not boolean : " ++ showExprC e
+convertC :: Expr -> ExprC
+convertC (Boo b) = BooC b
+convertC (Num n) = NumC n
+convertC (Chr n) = ChrC n
+convertC (Note e1 e2) = NoteC (convertC e1) (convertC e2)
+convertC (Seq es) = SeqC $ map convertC es
+convertC (Par es) = ParC $ map convertC es
+convertC e = error $ "convertC : can not convert : " ++ showExpr e
 
 parL :: ExprC -> ExprC -> ExprC
 parL x parxs = ParC $ x:xs where
     xs = case parxs of
         ParC ys -> ys
-        e -> error $ "par: second argument is not par list : " ++ showExprC e
+        e -> error $ "par : second argument is not par list : " ++ showExprC e
 
 seqL :: ExprC -> ExprC -> ExprC
 seqL x seqxs = SeqC $ x:xs where
     xs = case seqxs of
         SeqC ys -> ys
-        e -> error $ "seq: second argument is not par list : " ++ showExprC e
+        e -> error $ "seq : second argument is not par list : " ++ showExprC e
 
 car :: ExprC -> ExprC
 car (ParC (x:_)) = x
 car (SeqC (x:_)) = x
-car e = error $ "car: list is empty or not a list : " ++ showExprC e
+car e = error $ "car : list is empty or not a list : " ++ showExprC e
 
 cdr :: ExprC -> ExprC
 cdr (ParC (_:xs)) = ParC xs
 cdr (SeqC (_:xs)) = SeqC xs
-cdr e = error $ "cdr: list is empty or not a list : " ++ showExprC e
+cdr e = error $ "cdr : list is empty or not a list : " ++ showExprC e
 
 getArgsC :: ExprC
 getArgsC = SeqC . map (SeqC . map ChrC) . unsafePerformIO $ getArgs

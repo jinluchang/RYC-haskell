@@ -3,6 +3,7 @@ module Parser where
 import Data.List
 import Data.Array
 import Data.Ratio
+import Control.DeepSeq
 
 import Text.Parsec
 import Text.Parsec.String
@@ -76,10 +77,20 @@ instance Eq ExprC where
     ParC xs == ParC ys = xs == ys
     AppC _ _ == _ = error "First operand has not been fully evaluated when compared for equality"
     _ == AppC _ _ = error "Second operand has not been fully evaluated when compared for equality"
-    LamC  _ == _ = error "First operand is a function when compared for equality"
+    LamC _ == _ = error "First operand is a function when compared for equality"
     _ == LamC  _ = error "Second operand is a function when compared for equality"
     _ == _ = False
 
+instance NFData ExprC where
+    rnf (VarC x) = rnf x
+    rnf (BooC x) = rnf x
+    rnf (NumC x) = rnf x
+    rnf (ChrC x) = rnf x
+    rnf (NoteC x y) = rnf (x,y)
+    rnf (SeqC xs) = rnf xs
+    rnf (ParC xs) = rnf xs
+    rnf (AppC x y) = rnf (x,y)
+    rnf (LamC _) = ()
 
 instance Show Expr where
     show = showExpr
@@ -136,8 +147,13 @@ showDefns = (++"\n") . intercalate " ;\n" . map showDefn
 
 readProg :: String -> [Defn]
 readProg str = case parse pProg (take 10 str) str of
-    Left err -> error (show err)
+    Left err -> error $ show err
     Right prog -> prog
+
+readExpr :: String -> Expr
+readExpr str = case parse pExpr (take 10 str) str of
+    Left err -> error $ show err
+    Right expr -> expr
 
 pProg :: Parser [Defn]
 pProg = do
