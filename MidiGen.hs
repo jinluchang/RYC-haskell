@@ -3,8 +3,11 @@ module Main where
 import Data.List
 import Data.Function
 import Data.Array
+import Data.Maybe
 import Control.Monad
 
+import System.FilePath
+import System.Console.GetOpt
 import System.Environment
 
 import Codec.Midi
@@ -12,20 +15,38 @@ import Codec.Midi
 import Parser
 import Evaluation
 
+data Flag
+    = Verbose
+    | OutputFilename String
+  deriving (Eq, Show)
+
+getOutputFilename :: Flag -> Maybe String
+getOutputFilename (OutputFilename fn) = Just fn
+getOutputFilename _ = Nothing
+
+options :: [OptDescr Flag]
+options =
+    [ Option "v"   ["verbose"]    (NoArg Verbose) "show many intermediate information"
+    , Option "o"   ["output"]     (ReqArg OutputFilename "output-filename")
+        "output filename, default is based on input filename" ]
+
+compileOpts :: [String] -> ([Flag], [String])
+compileOpts argv = case getOpt Permute options argv of
+    (opts, args, []) -> (opts, args)
+    e -> error $ show e
+
 main :: IO ()
 main = do
-    args <- getArgs
-    str <- if "-v" /= args !! 0
-        then readFile $ args !! 0
-        else readFile $ args !! 1
-    let prog = readProg str
+    (flags, args) <- liftM compileOpts $ getArgs
+    strs <- mapM readFile args
+    let prog = concat $ map readProg strs
         melody = variablePadding $ envGen prog ! 0
         track = deltaList . eventList . fillDefault $ melody
-    when ("-v" == args !! 0) $ do
+    when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"
         putStrLn "Original Program ------------------------------------------------------------------------"
         putStrLn ""
-        putStrLn str
+        mapM_ putStrLn strs
         putStrLn ""
         putStrLn "-----------------------------------------------------------------------------------------"
         putStrLn "Parsed Program --------------------------------------------------------------------------"
@@ -41,11 +62,12 @@ main = do
         putStrLn "Sequence --------------------------------------------------------------------------------"
         putStrLn ""
         mapM_ print $ track
-    exportFile "a.mid" $ Midi
+    let defaultOutputFileName = replaceExtension (takeFileName (head args)) ".mid"
+        outputFileName = last . (defaultOutputFileName :) $ mapMaybe getOutputFilename flags
+    exportFile outputFileName $ Midi
         { fileType = SingleTrack
         , timeDiv = TicksPerBeat 230
         , tracks = [track] }
-
 
 deltaList :: [(Int, Message)] -> [(Int, Message)]
 deltaList = delta 0 . sortBy (compare `on` fst) where

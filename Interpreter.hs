@@ -3,24 +3,36 @@ module Main where
 import Control.Monad
 import Data.Array
 
+import System.Console.GetOpt
 import System.Environment
 
 import Parser
 import Evaluation
 
+data Flag
+    = Verbose
+  deriving (Eq, Show)
+
+options :: [OptDescr Flag]
+options =
+    [ Option "v"   ["verbose"]    (NoArg Verbose)  "show many intermediate information" ]
+
+compileOpts :: [String] -> ([Flag], [String])
+compileOpts argv = case getOpt Permute options argv of
+    (opts, args, []) -> (opts, args)
+    e -> error $ show e
+
 main :: IO ()
 main = do
-    args <- getArgs
-    str <- if "-v" /= args !! 0
-        then readFile $ args !! 0
-        else readFile $ args !! 1
-    let prog = readProg str
+    (flags, args) <- liftM compileOpts $ getArgs
+    strs <- mapM readFile args
+    let prog = concat $ map readProg strs
         melody = variablePadding (envGen prog ! 0)
-    when ("-v" == args !! 0) $ do
+    when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"
         putStrLn "Original Program ------------------------------------------------------------------------"
         putStrLn ""
-        putStrLn str
+        mapM_ putStrLn strs
         putStrLn ""
         putStrLn "-----------------------------------------------------------------------------------------"
         putStrLn "Parsed Program --------------------------------------------------------------------------"

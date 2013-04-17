@@ -7,4 +7,4 @@ ryc-midi : *.hs
 	ghc -Wall -O2 -o ryc-midi MidiGen.hs
 
 clean :
-	rm ryc ryc-midi *.hi *.o a.mid || :
+	rm ryc ryc-midi *.hi *.o *.mid || :

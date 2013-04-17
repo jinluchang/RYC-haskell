@@ -6,4 +6,4 @@ will print the final melody to standard output.
 
 ./ryc-midi source-filename
 
-will generate a.mid file as output.
+will generate source-filename.mid file as output.
