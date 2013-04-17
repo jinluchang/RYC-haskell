@@ -7,6 +7,7 @@ import Data.Char
 
 import System.Environment
 import System.IO.Unsafe
+import Debug.Trace
 
 import Parser
 
@@ -77,100 +78,124 @@ variablePadding = go names where
 
 primitives :: [(Name, ExprC)]
 primitives =
-    [ ("^"        , LamC $ mapMelody $ raise 12)
-    , ("_"        , LamC $ mapMelody $ raise (-12))
-    , ("#"        , LamC $ mapMelody $ raise 1)
-    , ("&"        , LamC $ mapMelody $ raise (-1))
-    , ("/"        , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 / n2)
-    , ("*"        , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 * n2)
-    , ("+"        , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 + n2)
-    , ("-"        , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> NumC $ n1 - n2)
-    , (">"        , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 > n2)
-    , ("<"        , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 < n2)
-    , (">="       , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 >= n2)
-    , ("<="       , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 <= n2)
-    , ("=="       , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 == n2)
-    , ("/="       , LamC $ \(NumC n1) -> LamC $ \(NumC n2) -> BooC $ n1 /= n2)
-    , ("not"      , LamC $ \(BooC b) -> BooC $ not b)
-    , ("or"       , LamC $ \b1 -> LamC $ \b2 -> orC b1 b2)
-    , ("and"      , LamC $ \b1 -> LamC $ \b2 -> andC b1 b2)
-    , ("chr"      , LamC $ \(NumC n) -> ChrC . chr $ round n)
-    , ("ord"      , LamC $ \(ChrC c) -> NumC . fi $ ord c)
-    , ("getArgs"  , getArgsC)
-    , ("readFile" , LamC $ readFileC)
-    , ("char?"    , LamC $ isChr)
-    , ("nil?"     , LamC $ isNil)
-    , ("par?"     , LamC $ isPar)
-    , ("seq?"     , LamC $ isSeq)
-    , ("car"      , LamC $ car)
-    , ("cdr"      , LamC $ cdr)
-    , ("par"      , LamC $ \x -> LamC $ \parxs -> parL x parxs)
-    , ("seq"      , LamC $ \x -> LamC $ \seqxs -> seqL x seqxs)
-    , ("time"     , LamC $ \e -> NumC $ getTime e)
-    , ("pitch"    , LamC $ \e -> NumC $ getPitch e)
-    , ("if"       , LamC $ \(BooC b) -> LamC $ \e1 -> LamC $ \e2 -> if b then e1 else e2)
-    , ("true"     , BooC True)
-    , ("false"    , BooC False) ]
+    [ ("^"          , LamC $ mapMelody $ raise 12)
+    , ("_"          , LamC $ mapMelody $ raise (-12))
+    , ("#"          , LamC $ mapMelody $ raise 1)
+    , ("&"          , LamC $ mapMelody $ raise (-1))
+    , ("/"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) / (getNumC n2))
+    , ("*"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) * (getNumC n2))
+    , ("+"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) + (getNumC n2))
+    , ("-"          , LamC $ \n1 -> LamC $ \n2 -> NumC $ (getNumC n1) - (getNumC n2))
+    , (">"          , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) > (getNumC n2))
+    , ("<"          , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) < (getNumC n2))
+    , (">="         , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) >= (getNumC n2))
+    , ("<="         , LamC $ \n1 -> LamC $ \n2 -> BooC $ (getNumC n1) <= (getNumC n2))
+    , ("=="         , LamC $ \e1 -> LamC $ \e2 -> BooC $ e1 == e2)
+    , ("/="         , LamC $ \e1 -> LamC $ \e2 -> BooC $ e1 /= e2)
+    , ("not"        , LamC $ \(BooC b) -> BooC $ not b)
+    , ("or"         , LamC $ \b1 -> LamC $ \b2 -> BooC $ orC b1 b2)
+    , ("and"        , LamC $ \b1 -> LamC $ \b2 -> BooC $ andC b1 b2)
+    , ("chr"        , LamC $ \n -> ChrC . chr . round $ getNumC n)
+    , ("ord"        , LamC $ \c -> NumC . fi . ord $ getChrC c)
+    , ("getArgs"    , getArgsC)
+    , ("readFile"   , LamC $ readFileC)
+    , ("char?"      , LamC $ BooC . isChr)
+    , ("nil?"       , LamC $ BooC . isNil)
+    , ("par?"       , LamC $ BooC . isPar)
+    , ("seq?"       , LamC $ BooC . isSeq)
+    , ("car"        , LamC $ car)
+    , ("cdr"        , LamC $ cdr)
+    , ("par"        , LamC $ \x -> LamC $ \parxs -> parL x parxs)
+    , ("seq"        , LamC $ \x -> LamC $ \seqxs -> seqL x seqxs)
+    , ("time"       , LamC $ \e -> NumC $ getTime e)
+    , ("pitch"      , LamC $ \e -> NumC $ getPitch e)
+    , ("if"         , LamC $ \b -> LamC $ \e1 -> LamC $ \e2 -> if getBooC b then e1 else e2)
+    , ("true"       , BooC True)
+    , ("false"      , BooC False)
+    , ("show"       , LamC $ \e -> SeqC . map ChrC . showExprC $ e )
+    , ("trace"      , LamC $ \e -> trace (showExprC e) $ LamC $ \e1 -> e1) ]
 
-andC :: ExprC -> ExprC -> ExprC
-andC (BooC b1) b2c = BooC $ b1 && b2 where
-    BooC b2 = b2c
-andC _ _ = error $ "and : not boolean"
+andC :: ExprC -> ExprC -> Bool
+andC (BooC b1) b2c = b1 && b2 where
+    b2 = case b2c of
+        BooC b2' -> b2'
+        e -> error $ "and : not boolean : " ++ showExprC e
+andC e _ = error $ "and : not boolean : " ++ showExprC e
 
-orC :: ExprC -> ExprC -> ExprC
-orC (BooC b1) b2c = BooC $ b1 || b2 where
-    BooC b2 = b2c
-orC _ _ = error $ "or : not boolean"
+orC :: ExprC -> ExprC -> Bool
+orC (BooC b1) b2c = b1 || b2 where
+    b2 = case b2c of
+        BooC b2' -> b2'
+        e -> error $ "or : not boolean : " ++ showExprC e
+orC e _ = error $ "or : not boolean : " ++ showExprC e
 
 parL :: ExprC -> ExprC -> ExprC
 parL x parxs = ParC $ x:xs where
     xs = case parxs of
         ParC ys -> ys
-        _ -> error "par: second argument is not par list"
+        e -> error $ "par: second argument is not par list : " ++ showExprC e
 
 seqL :: ExprC -> ExprC -> ExprC
 seqL x seqxs = SeqC $ x:xs where
     xs = case seqxs of
         SeqC ys -> ys
-        _ -> error "seq: second argument is not par list"
+        e -> error $ "seq: second argument is not par list : " ++ showExprC e
 
 car :: ExprC -> ExprC
 car (ParC (x:_)) = x
 car (SeqC (x:_)) = x
-car _ = error "car: List is empty"
+car e = error $ "car: list is empty or not a list : " ++ showExprC e
 
 cdr :: ExprC -> ExprC
 cdr (ParC (_:xs)) = ParC xs
 cdr (SeqC (_:xs)) = SeqC xs
-cdr _ = error "cdr: List is empty"
+cdr e = error $ "cdr: list is empty or not a list : " ++ showExprC e
 
 getArgsC :: ExprC
 getArgsC = SeqC . map (SeqC . map ChrC) . unsafePerformIO $ getArgs
 
 readFileC :: ExprC -> ExprC
-readFileC (SeqC cs) | all isC cs = SeqC . map ChrC . unsafePerformIO . readFile $ map getC cs where
+readFileC (SeqC cs) | all isC cs = SeqC . map ChrC . unsafePerformIO . readFile $ map getChrC cs where
     isC (ChrC _) = True
     isC _ = False
-    getC (ChrC c) = c
-    getC e = error $ "readFileC : getC : not a character : " ++ showExpr (variablePadding e)
-readFileC e = error $ "readFileC : not a filename : " ++ showExpr (variablePadding e)
+readFileC e = error $ "readFileC : not a filename : " ++ showExprC e
 
-isChr :: ExprC -> ExprC
-isChr (ChrC _) = BooC True
-isChr _ = BooC False
+getChrC :: ExprC -> Char
+getChrC (ChrC c) = c
+getChrC e = error $ "getChrC : " ++ showExprC e
 
-isNil :: ExprC -> ExprC
-isNil (ParC []) = BooC True
-isNil (SeqC []) = BooC True
-isNil _ = BooC False
+getBooC :: ExprC -> Bool
+getBooC (BooC b) = b
+getBooC e = error $ "getBooC : " ++ showExprC e
 
-isPar :: ExprC -> ExprC
-isPar (ParC []) = BooC True
-isPar _ = BooC False
+getSeqC :: ExprC -> [ExprC]
+getSeqC (SeqC es) = es
+getSeqC e = error $ "getSeqC : " ++ showExprC e
 
-isSeq :: ExprC -> ExprC
-isSeq (SeqC []) = BooC True
-isSeq _ = BooC False
+getParC :: ExprC -> [ExprC]
+getParC (ParC es) = es
+getParC e = error $ "getParC : " ++ showExprC e
+
+getNumC :: ExprC -> Number
+getNumC (NumC n) = n
+getNumC e = error $ "getNumC : " ++ showExprC e
+
+isChr :: ExprC -> Bool
+isChr (ChrC _) = True
+isChr _ = False
+
+isNil :: ExprC -> Bool
+isNil (ParC []) = True
+isNil (SeqC []) = True
+isNil _ = False
+
+isPar :: ExprC -> Bool
+isPar (ParC []) = True
+isPar _ = False
+
+isSeq :: ExprC -> Bool
+isSeq (SeqC []) = True
+isSeq _ = False
 
 raise :: Int -> ExprC -> ExprC
 raise k = mapMelody go where
@@ -218,14 +243,17 @@ getTime (SeqC es) = sum $ map getTime es
 getTime (ParC es) = maximum $ map getTime es
 getTime (NumC _) = 1
 getTime (NoteC _ (NumC t)) = t
-getTime _ = error "argument to time is not valid"
+getTime e = error $ "time : not a melody : " ++ showExprC e
 
 getPitch :: ExprC -> Number
 getPitch (NumC n) = n
 getPitch (NoteC (NumC n) _) = n
-getPitch _ = error "argument to pitch is not valid"
+getPitch e = error $ "pitch : not a note : " ++ showExprC e
 
 mapMelody :: (ExprC -> ExprC) -> ExprC -> ExprC
 mapMelody f (SeqC es) = SeqC $ map (mapMelody f) es
 mapMelody f (ParC es) = ParC $ map (mapMelody f) es
 mapMelody f e = f e
+
+showExprC :: ExprC -> String
+showExprC = showExpr . variablePadding

@@ -56,6 +56,7 @@ instance Eq Expr where
     Var x == Var y = x == y
     Boo x == Boo y = x == y
     Num x == Num y = x == y
+    Chr x == Chr y = x == y
     Note x1 x2 == Note y1 y2 = x1 == y1 && x2 == y2
     Seq xs == Seq ys = xs == ys
     Par xs == Par ys = xs == ys
@@ -64,6 +65,21 @@ instance Eq Expr where
     Lam _ _ == _ = error "First operand is a function when compared for equality"
     _ == Lam _ _ = error "Second operand is a function when compared for equality"
     _ == _ = False
+
+instance Eq ExprC where
+    VarC x == VarC y = x == y
+    BooC x == BooC y = x == y
+    NumC x == NumC y = x == y
+    ChrC x == ChrC y = x == y
+    NoteC x1 x2 == NoteC y1 y2 = x1 == y1 && x2 == y2
+    SeqC xs == SeqC ys = xs == ys
+    ParC xs == ParC ys = xs == ys
+    AppC _ _ == _ = error "First operand has not been fully evaluated when compared for equality"
+    _ == AppC _ _ = error "Second operand has not been fully evaluated when compared for equality"
+    LamC  _ == _ = error "First operand is a function when compared for equality"
+    _ == LamC  _ = error "Second operand is a function when compared for equality"
+    _ == _ = False
+
 
 instance Show Expr where
     show = showExpr
