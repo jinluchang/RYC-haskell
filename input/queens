@@ -1,3 +1,5 @@
+/* vim: set expandtab : */
+
 song = search-queen 8 ;
 
 search-queen size =
@@ -11,18 +13,18 @@ search-queen size =
 
 valid-queen? xs x =
     let go n rs = if (nil? rs)
-        true
-        (let r' = car rs ; rs' = cdr rs
-         in and (/= x r')
-           (and (/= x (+ r' n))
-           (and (/= x (- r' n))
-                (go (+ 1 n) rs'))))
+            true
+            (let r' = car rs ; rs' = cdr rs
+             in and (/= x r')
+               (and (/= x (+ r' n))
+               (and (/= x (- r' n))
+                    (go (+ 1 n) rs'))))
     in go 1 xs ;
 
 genListFromToStep from to step =
     let go n = if (> n to)
-        []
-        (seq n (go (+ n step)))
+            []
+            (seq n (go (+ n step)))
     in go from ;
 
 length xs = if (nil? xs)
@@ -53,4 +55,4 @@ filterSeq p xs = if (nil? xs)
     (let x' = car xs ; xs' = cdr xs
      in if (p x')
          (seq x' (filterSeq p xs'))
-        (filterSeq p xs'))
+         (filterSeq p xs'))
