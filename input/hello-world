@@ -1,0 +1,17 @@
+song = force messages [1 2 3 4 5 6 7 9] ;
+
+messages = traceShow [
+        (let message = read (show "hello world\n")
+         in (force (trace message) "force evaluate its first argument"))
+        (if false (trace "not forced") "if do not evaluate all its arguments")
+        ("Current Argument is : " getArgs)
+        (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'}) ]
+    (trace (append "\nContents of current file is :\n\n" (readFile "hello-world"))) ;
+
+traceShow x = trace (show x) ;
+
+append = appendSeq ;
+appendSeq xs ys = if (nil? xs)
+    ys
+    (let x' = car xs ; xs' = cdr xs
+     in seq x' (appendSeq xs' ys))

@@ -41,6 +41,7 @@ main = do
     (flags, args) <- liftM compileOpts $ getArgs
     if args == [] then error "No input files" else return ()
     strs <- mapM readFile args
+    cwd <- getCurrentDirectory
     setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
         melody = variablePadding $ envGen prog ! 0
@@ -67,7 +68,7 @@ main = do
         mapM_ print $ track
     let defaultOutputFileName = replaceExtension (takeFileName (head args)) ".mid"
         outputFileName = last . (defaultOutputFileName :) $ mapMaybe getOutputFilename flags
-    exportFile outputFileName $ Midi
+    exportFile (cwd </> outputFileName) $ Midi
         { fileType = SingleTrack
         , timeDiv = TicksPerBeat 230
         , tracks = [track] }
