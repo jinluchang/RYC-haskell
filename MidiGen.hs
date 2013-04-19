@@ -38,7 +38,7 @@ compileOpts argv = case getOpt Permute options argv of
 
 main :: IO ()
 main = do
-    (flags, args) <- liftM compileOpts $ getArgs
+    (flags, args) <- liftM (compileOpts . takeWhile (/="---")) $ getArgs
     if args == [] then error "No input files" else return ()
     strs <- mapM readFile args
     cwd <- getCurrentDirectory
