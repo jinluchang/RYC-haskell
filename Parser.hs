@@ -108,7 +108,7 @@ showExpr (App e1 e2) = showFun e1 ++ " " ++ showArg e2 where
     showArg e = showAExpr e
 showExpr (Seq es) = showAExpr (Seq es)
 showExpr (Par es) = showAExpr (Par es)
-showExpr (Lam x body) = "\\" ++ x ++ " -> " ++ showExpr body
+showExpr (Lam x body) = showLamExpr [x] body
 showExpr (Let ds e) = "let " ++ intercalate " ; " (map showDefn ds) ++ " in " ++ showExpr e
 
 showAExpr :: Expr -> String
@@ -127,10 +127,13 @@ showAExpr (Seq cs) | all isC cs = show $ map getC cs where
     getC (Chr c) = c
     getC e = error $ "showAExpr : getC : not a character : " ++ showExpr e
 showAExpr (Note e1 e2) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
-showAExpr (Lam x body) = "(" ++ showExpr (Lam x body) ++ ")"
 showAExpr (Seq es) = "[" ++ unwords (map showAExpr es) ++ "]"
 showAExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
 showAExpr e = "(" ++ showExpr e ++ ")"
+
+showLamExpr :: [Name] -> Expr -> String
+showLamExpr xs (Lam x body) = showLamExpr (x:xs) body
+showLamExpr xs body = "\\" ++ unwords (reverse xs) ++ " -> " ++ showExpr body
 
 showDefn :: Defn -> String
 showDefn (fun, defn) = go [] defn where

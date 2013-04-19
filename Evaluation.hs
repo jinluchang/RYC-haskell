@@ -26,7 +26,7 @@ compile envG = go where
         Seq es -> SeqB $ map (go env) es
         Par es -> ParB $ map (go env) es
         Let ds e -> LetB (map (go env' . snd) ds) (go env' e)
-            where env' = map fst ds ++ env
+          where env' = map fst ds ++ env
         Lam x body  -> LamB $ go (x:env) body
         Var x -> case findIndex (==x) env of
             Just n -> BoundB n
@@ -46,7 +46,7 @@ eval expr envG = go expr where
         NoteB e1 e2 -> NoteC (go e1 env) (go e2 env)
         AppB e1 e2 -> apply (go e1 env) (go e2 env)
         LetB ds e' -> go e' env'
-            where env' = map (\eb -> go eb env') ds ++ env
+          where env' = map (\eb -> go eb env') ds ++ env
         BoundB n -> env !! n
         BoundGB n -> envG ! n
         LamB body -> LamC $ \vx -> go body (vx:env)
@@ -57,10 +57,11 @@ envGen :: [Defn] -> EnvG
 envGen defns = envG where
     (fns, fs) = unzip $ ("song", fromJust $ lookup "song" defns) : filter ((/= "song") . fst) defns
     envG = listArray (0, length defns + length primitives - 1) $
-        (map (\eb -> eval eb envG []) $ map (compile (fns ++ map fst primitives) []) fs) ++ map snd primitives
+        (map (\eb -> eval eb envG []) $ map (compile (fns ++ map fst primitives) []) fs) ++
+        map snd primitives
 
 variablePadding :: ExprC -> Expr
-variablePadding = go names where
+variablePadding = renameExpr . go names where
     go ns expr = case expr of
         VarC x -> Var x
         BooC b -> Boo b
@@ -71,7 +72,49 @@ variablePadding = go names where
         SeqC es -> Seq $ map (go ns) es
         ParC es -> Par $ map (go ns) es
         LamC f -> Lam (head ns) $ go (tail ns) $ f (VarC $ head ns)
-    names = map ("$var"++) $ map show ([0..] :: [Int])
+    names = map ("$" ++) (map (\x->[x]) "abcdefghijklmnopqrstuvwxyz") ++
+        map ("$var" ++) (map show ([0..] :: [Int]))
+
+renameExpr :: Expr -> Expr
+renameExpr = pad [] . compile [] [] where
+    pad env eb = case eb of
+        VarB y -> Var y
+        BooB b -> Boo b
+        NumB n -> Num n
+        ChrB c -> Chr c
+        SeqB es -> Seq $ map (pad env) es
+        ParB es -> Seq $ map (pad env) es
+        NoteB e1 e2 -> Note (pad env e1) (pad env e2)
+        AppB e1 e2 -> App (pad env e1) (pad env e2)
+        LetB ds e' -> Let (zip ns $ map (pad env') ds) $ pad env' e'
+          where
+            ns = take (length ds) $ filter (`isNotFreeInAll` (e':ds)) $ filter (`notElem` env) names
+            env' = ns ++ env
+        BoundB n -> Var $ env !! n
+        BoundGB _ -> error $ "global name in renaming, shouldn't happen"
+        LamB body -> Lam n $ pad (n:env) body
+          where n = head $ filter (`isNotFreeIn` body) $ filter (`notElem` env) names
+    names = map (\x->[x]) "abcdefghijklmnopqrstuvwxyz" ++
+        map ("var" ++) (map show ([0..] :: [Int]))
+
+isNotFreeInAll :: Name -> [ExprB] -> Bool
+x `isNotFreeInAll` exprBs = all (x `isNotFreeIn`) exprBs
+
+isNotFreeIn :: Name -> ExprB -> Bool
+x `isNotFreeIn` exprB = go exprB where
+    go eb = case eb of
+        VarB y -> x /= y
+        BooB _ -> True
+        NumB _ -> True
+        ChrB _ -> True
+        SeqB es -> all go es
+        ParB es -> all go es
+        NoteB e1 e2 -> go e1 && go e2
+        AppB e1 e2 -> go e1 && go e2
+        LetB ds e -> all go ds && go e
+        BoundB _ -> True
+        BoundGB _ -> True
+        LamB body -> go body
 
 -- ------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------
@@ -119,13 +162,9 @@ primitives =
     , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id) ]
 
 convertC :: Expr -> ExprC
-convertC (Boo b) = BooC b
-convertC (Num n) = NumC n
-convertC (Chr n) = ChrC n
-convertC (Note e1 e2) = NoteC (convertC e1) (convertC e2)
-convertC (Seq es) = SeqC $ map convertC es
-convertC (Par es) = ParC $ map convertC es
-convertC e = error $ "convertC : can not convert : " ++ showExpr e
+convertC e = eval (compile nG [] e) eG [] where
+    nG = map fst primitives
+    eG = listArray (0, length primitives - 1) $ map snd primitives
 
 parL :: ExprC -> ExprC -> ExprC
 parL x parxs = ParC $ x:xs where

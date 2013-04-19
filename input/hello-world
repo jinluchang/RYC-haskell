@@ -6,7 +6,7 @@ messages = traceShow [
         (if false (trace "not forced") "if do not evaluate all its arguments")
         ("Current Argument is : " getArgs)
         (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
-        ((\x y -> x y z) (\x -> x)) ]
+        ((\x y k -> x y z) (\x -> x)) ]
     (trace (append "\nContents of current file is :\n\n" (readFile "hello-world"))) ;
 
 traceShow x = trace (show x) ;

@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Monad
+import Control.Arrow
 import Data.Array
 
 import System.Console.GetOpt
@@ -30,7 +31,7 @@ main = do
     if args == [] then error "No input files" else return ()
     strs <- mapM readFile args
     setCurrentDirectory $ takeDirectory . head $ args
-    let prog = concat $ map readProg strs
+    let prog = map (second renameExpr) . concat $ map readProg strs
         melody = variablePadding $ envGen prog ! 0
     when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"
