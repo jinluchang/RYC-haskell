@@ -1,4 +1,4 @@
-/* vim: set expandtab : */
+/* vim: set expandtab filetype=haskell : */
 
 song = search-queen 8 ;
 
