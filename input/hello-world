@@ -11,7 +11,8 @@ messages = trace (append "\nContents of current file is :\n\n" (read-file "hello
       (car (read-with-env global-env (fake-program (read-file "queens"))))
       (car (read-with-env prim-env (fake-program (read-file "queens"))))
       ((\x y k -> x y z) (\x -> x))
-	  (map car (read-env [(read-file "queens")]))] ;
+	  (map car (read-env [(read-file "queens")]))
+	  (car (read-env [(read-file "queens")]))] ;
 
 fake-program defns = append "let " (append defns " in song") ;
 

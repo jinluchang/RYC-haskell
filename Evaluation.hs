@@ -88,7 +88,7 @@ renameExpr = pad [] . compile [] [] where
         NumB n -> Num n
         ChrB c -> Chr c
         SeqB es -> Seq $ map (pad env) es
-        ParB es -> Seq $ map (pad env) es
+        ParB es -> Par $ map (pad env) es
         NoteB e1 e2 -> Note (pad env e1) (pad env e2)
         AppB e1 e2 -> App (pad env e1) (pad env e2)
         LetB ds e' -> Let (zip ns $ map (pad env') ds) $ pad env' e'
