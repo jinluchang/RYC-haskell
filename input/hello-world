@@ -1,20 +1,50 @@
-song = force messages [1 2 3 4 5 6 7 9] ;
+song = traceShow messages [1 2 3 4 5 6 7 9] ;
 
-messages = traceShow [
-        (let message = read (show "hello world\n")
-         in (force (trace message) "force evaluate its first argument"))
-        (if false (trace "not forced") "if do not evaluate all its arguments")
-        ("Current Argument is : " get-args)
-        (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
-        (car (read-with-env (read-env [(read-file "queens")]) "song"))
-        (car (read-with-env global-env (fake-program (read-file "queens"))))
-        (car (read-with-env prim-env (fake-program (read-file "queens"))))
-        ((\x y k -> x y z) (\x -> x)) ]
-    (trace (append "\nContents of current file is :\n\n" (read-file "hello-world"))) ;
+messages = trace (append "\nContents of current file is :\n\n" (read-file "hello-world"))
+    [ (let msg = read (show "hello world\n")
+       in (force (trace msg) "force evaluate its first argument"))
+      (if false (trace "not forced") "if do not evaluate all its arguments")
+      ("complete arguments are: " get-args)
+      ("arguments for this are: " args)
+      (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
+      (car (read-with-env (read-env [(read-file "queens")]) "song"))
+      (car (read-with-env global-env (fake-program (read-file "queens"))))
+      (car (read-with-env prim-env (fake-program (read-file "queens"))))
+      ((\x y k -> x y z) (\x -> x))
+	  (map car (read-env [(read-file "queens")]))] ;
 
 fake-program defns = append "let " (append defns " in song") ;
 
+args = dropTill (/= "---") get-args ;
+
+take = takeSeq ;
+takeSeq n xs = if (== 0 n)
+	[]
+	(takeSeq (n-1) (cdr xs)) ;
+
+dropTill = dropTillSeq ;
+dropTillSeq p xs = if (nil? xs)
+    []
+    (let x' = car xs ; xs' = cdr xs
+     in if (p x')
+         (dropTillSeq p xs')
+         xs') ;
+
+dropWhile = dropWhileSeq ;
+dropWhileSeq p xs = if (nil? xs)
+    []
+    (let x' = car xs ; xs' = cdr xs
+     in if (p x')
+         (dropWhileSeq p xs')
+         (seq x' xs')) ;
+
 traceShow x = trace (show x) ;
+
+map = mapSeq ;
+mapSeq f xs = if (nil? xs)
+    []
+    (let x' = car xs ; xs' = cdr xs
+     in seq (f x') (mapSeq f xs')) ;
 
 append = appendSeq ;
 appendSeq xs ys = if (nil? xs)

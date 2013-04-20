@@ -162,7 +162,7 @@ primitivesGen nameEnvG =
     , ("true"       , BooC True)
     , ("false"      , BooC False)
     , ("show"       , LamC $ \e -> SeqC . map ChrC . showExprC $ e )
-    , ("read"       , LamC $ \e -> convertC . readExpr $ getStringC e)
+    , ("read"       , LamC $ \e -> interpret nameEnvG . readExpr $ getStringC e)
     , ("read-env"   , LamC $ \e -> putEnvGC . envGen . concatMap (readProg . getStringC) $ getSeqC e)
     , ("read-with-env"
                     , LamC $ \envC ->
@@ -185,9 +185,6 @@ putEnvGC (fns, envG) = SeqC $ zipWith (\n e -> ParC [n,e]) fnsC $ elems envG whe
 
 getStringC :: ExprC -> String
 getStringC = map getChrC . getSeqC
-
-convertC :: Expr -> ExprC
-convertC = interpret primitiveNameEnvG
 
 primitiveNameEnvG :: ([Name], EnvG)
 primitiveNameEnvG = (nG, eG) where
