@@ -1,4 +1,6 @@
-song = traceShow messages [1 2 3 4 5 6 7 9] ;
+/* vim: set expandtab filetype=haskell: */
+
+song = read "traceShow messages [1 2 3 4 5 6 7 9]" ;
 
 messages = trace (append "\nContents of current file is :\n\n" (read-file "hello-world"))
     [ (let msg = read (show "hello world\n")
@@ -12,7 +14,7 @@ messages = trace (append "\nContents of current file is :\n\n" (read-file "hello
       (car (read-with-env prim-env (fake-program (read-file "queens"))))
       ((\x y k -> x y z) (\x -> x))
 	  (map car (read-env [(read-file "queens")]))
-	  (car (read-env [(read-file "queens")]))] ;
+	  (car (read-env [(read-file "queens")])) ] ;
 
 fake-program defns = append "let " (append defns " in song") ;
 
