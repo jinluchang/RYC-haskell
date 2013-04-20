@@ -15,8 +15,7 @@ fi :: (Integral a, Num b) => a -> b
 fi x = fromIntegral x
 
 interpret :: ([Name], EnvG) -> Expr -> ExprC
-interpret (fns, envG) e = eval eb envG [] where
-    eb = compile fns [] e
+interpret (fns, envG) = eval envG [] . compile fns []
 
 compile :: [Name] -> [Name] -> Expr -> ExprB
 compile envG = go where
@@ -37,33 +36,35 @@ compile envG = go where
                 Just n -> BoundGB n
                 Nothing -> VarB x
 
-eval :: ExprB -> EnvG -> Env -> ExprC
-eval expr envG = go expr where
-    go e env = case e of
+eval :: EnvG -> Env -> ExprB -> ExprC
+eval envG = go where
+    go env e = case e of
         VarB x -> VarC x
         BooB b -> BooC b
         NumB n -> NumC n
         ChrB c -> ChrC c
-        SeqB es -> SeqC $ map (\eb -> go eb env) es
-        ParB es -> ParC $ map (\eb -> go eb env) es
-        NoteB e1 e2 -> NoteC (go e1 env) (go e2 env)
-        AppB e1 e2 -> apply (go e1 env) (go e2 env)
-        LetB ds e' -> go e' env'
-          where env' = map (\eb -> go eb env') ds ++ env
+        SeqB es -> SeqC $ map (go env) es
+        ParB es -> ParC $ map (go env) es
+        NoteB e1 e2 -> NoteC (go env e1) (go env e2)
+        AppB e1 e2 -> apply (go env e1) (go env e2)
+        LetB ds e' -> go env' e'
+          where env' = map (go env') ds ++ env
         BoundB n -> env !! n
         BoundGB n -> envG ! n
-        LamB body -> LamC $ \vx -> go body (vx:env)
+        LamB body -> LamC $ \vx -> go (vx:env) body
     apply (LamC f) arg = f arg
     apply fun arg = AppC fun arg
 
 envGen :: [Defn] -> ([Name], EnvG)
-envGen defns = (fns, envG) where
+envGen defns = nEnvG where
+    nEnvG = nameEnvGCombine (definitionsGen defns nEnvG ++ primitivesGen nEnvG)
+
+definitionsGen :: [Defn] -> ([Name], EnvG) -> [(Name, ExprC)]
+definitionsGen defns (fns, envG) = zip dfns $ map (eval envG []) $ map (compile fns []) dfs  where
     (dfns, dfs) = unzip defns
-    fns = dfns ++ map fst primitives
-    envG = listArray (0, length defns + length primitives - 1) $
-        (map (\eb -> eval eb envG []) $ map (compile fns []) dfs) ++
-        map snd primitives
-    primitives = primitivesGen (fns, envG)
+
+nameEnvGCombine :: [(Name, ExprC)] -> ([Name], EnvG)
+nameEnvGCombine env = (map fst env, listArray (0, length env - 1) $ map snd env)
 
 variablePadding :: ExprC -> Expr
 variablePadding = renameExpr . go names where
@@ -163,34 +164,54 @@ primitivesGen nameEnvG =
     , ("if"         , LamC $ \b -> LamC $ \e1 -> LamC $ \e2 -> if getBooC b then e1 else e2)
     , ("true"       , BooC True)
     , ("false"      , BooC False)
-    , ("show"       , LamC $ \e -> SeqC . map ChrC . showExprC $ e )
+    , ("show"       , LamC $ \e -> putStringC . showExprC $ e )
     , ("read"       , LamC $ \e -> interpret nameEnvG . readExpr $ getStringC e)
-    , ("read-env"   , LamC $ \e -> putEnvGC . envGen . concatMap (readProg . getStringC) $ getSeqC e)
+    , ("read-env"   , LamC $ \e -> putNEnvGC . envGen . readProg . getStringC $ e)
+    , ("read-env-list"
+                    , LamC $ \e -> putNEnvGC . envGen . concatMap (readProg . getStringC) $ getSeqC e)
+    , ("read-env-gen"
+                    , LamC $ \e -> LamC $ \envC ->
+                        putNEnvC $ (definitionsGen . readProg . getStringC $ e) $ getNEnvGC envC)
     , ("read-with-env"
                     , LamC $ \envC ->
-                        let env = getEnvGC envC
+                        let env = getNEnvGC envC
                         in LamC $ \e -> interpret env . readExpr $ getStringC e)
-    , ("global-env" , putEnvGC nameEnvG)
-    , ("prim-env"   , putEnvGC primitiveNameEnvG)
+    , ("global-env" , putNEnvGC nameEnvG)
+    , ("empty-env"  , putNEnvGC emptyNameEnvG)
+    , ("prim-env"   , putNEnvGC primitiveNameEnvG)
+    , ("prim-env-gen"
+                    , LamC $ \envC ->
+                        putNEnvC $ primitivesGen $ getNEnvGC envC)
     , ("force"      , LamC $ \e -> deepseq e $ LamC id)
     , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id)
     , ("get-args"   , getArgsC)
     , ("read-file"  , LamC $ readFileC) ]
 
 primitiveNameEnvG :: ([Name], EnvG)
-primitiveNameEnvG = (nG, eG) where
-    primitives = primitivesGen (nG,eG)
-    nG = map fst primitives
-    eG = listArray (0, length primitives - 1) $ map snd primitives
+primitiveNameEnvG = nEnvG where
+    nEnvG = nameEnvGCombine (primitivesGen nEnvG)
 
-getEnvGC :: ExprC -> ([Name], EnvG)
-getEnvGC = conv . transpose . map getParC . getSeqC where
-    conv [fnsC, es] = (map getStringC fnsC, listArray (0, length es - 1) es)
-    conv _ = error $ "getEnvGC : not a environment"
+emptyNameEnvG :: ([Name], EnvG)
+emptyNameEnvG = nameEnvGCombine []
 
-putEnvGC :: ([Name], EnvG) -> ExprC
-putEnvGC (fns, envG) = SeqC $ zipWith (\n e -> ParC [n,e]) fnsC $ elems envG where
-    fnsC = map (SeqC . map ChrC) fns
+getNEnvC :: ExprC -> [(Name, ExprC)]
+getNEnvC = conv . transpose . map getParC . getSeqC where
+    conv [fnsC, es] = zip (map getStringC fnsC) es
+    conv [] = []
+    conv _ = error $ "getNEnvC : not a environment"
+
+getNEnvGC :: ExprC -> ([Name], EnvG)
+getNEnvGC = nameEnvGCombine . getNEnvC
+
+putNEnvC :: [(Name, ExprC)] -> ExprC
+putNEnvC = SeqC . map (\(n,ec) -> ParC [putStringC n,ec])
+
+putNEnvGC :: ([Name], EnvG) -> ExprC
+putNEnvGC (fns, envG) = SeqC $ zipWith (\n e -> ParC [n,e]) fnsC $ elems envG where
+    fnsC = map putStringC fns
+
+putStringC :: String -> ExprC
+putStringC = SeqC . map ChrC
 
 getStringC :: ExprC -> String
 getStringC = map getChrC . getSeqC
@@ -218,10 +239,10 @@ cdr (SeqC (_:xs)) = SeqC xs
 cdr e = error $ "cdr : list is empty or not a list : " ++ showExprC e
 
 getArgsC :: ExprC
-getArgsC = SeqC . map (SeqC . map ChrC) . unsafePerformIO $ getArgs
+getArgsC = SeqC . map putStringC . unsafePerformIO $ getArgs
 
 readFileC :: ExprC -> ExprC
-readFileC (SeqC cs) | all isC cs = SeqC . map ChrC . unsafePerformIO . readFile $ map getChrC cs where
+readFileC (SeqC cs) | all isC cs = putStringC . unsafePerformIO . readFile $ map getChrC cs where
     isC (ChrC _) = True
     isC _ = False
 readFileC e = error $ "readFileC : not a filename : " ++ showExprC e

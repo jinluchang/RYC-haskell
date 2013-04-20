@@ -9,12 +9,17 @@ messages = trace (append "\nContents of current file is :\n\n" (read-file "hello
       ("complete arguments are: " get-args)
       ("arguments for this are: " args)
       (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
-      (car (read-with-env (read-env [(read-file "queens")]) "song"))
+      (car (read-with-env (read-env (read-file "queens")) "song"))
       (car (read-with-env global-env (fake-program (read-file "queens"))))
       (car (read-with-env prim-env (fake-program (read-file "queens"))))
       ((\x y k -> x y z) (\x -> x))
-	  (map car (read-env [(read-file "queens")]))
-	  (car (read-env [(read-file "queens")])) ] ;
+      (map car (read-env (read-file "queens")))
+      (car (read-env (read-file "queens")))
+      (let env = concat
+        [ (read-env-gen (read-file "queens") env)
+          [ {"+" (\x y -> if (and (== 6 x) (== 7 y)) (traceShow {"+" x y}) (\a -> a) (+ x y))} ]
+          (prim-env-gen env) ]
+       in car env) ];
 
 fake-program defns = append "let " (append defns " in song") ;
 
@@ -22,8 +27,8 @@ args = dropTill (/= "---") get-args ;
 
 take = takeSeq ;
 takeSeq n xs = if (== 0 n)
-	[]
-	(takeSeq (n-1) (cdr xs)) ;
+    []
+    (takeSeq (n-1) (cdr xs)) ;
 
 dropTill = dropTillSeq ;
 dropTillSeq p xs = if (nil? xs)
@@ -53,4 +58,10 @@ append = appendSeq ;
 appendSeq xs ys = if (nil? xs)
     ys
     (let x' = car xs ; xs' = cdr xs
-     in seq x' (appendSeq xs' ys))
+     in seq x' (appendSeq xs' ys)) ;
+
+concat = concatSeq ;
+concatSeq xs = if (nil? xs)
+    []
+    (let x' = car xs ; xs' = cdr xs
+     in appendSeq x' (concatSeq xs'))
