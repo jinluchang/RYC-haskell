@@ -2,7 +2,6 @@ module Main where
 
 import Data.List
 import Data.Function
-import Data.Array
 import Data.Maybe
 import Control.Monad
 
@@ -44,7 +43,7 @@ main = do
     cwd <- getCurrentDirectory
     setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
-        melody = variablePadding $ envGen prog ! 0
+        melody = variablePadding $ interpret (envGen prog) (Var "song")
         track = deltaList . eventList . fillDefault $ melody
     when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"

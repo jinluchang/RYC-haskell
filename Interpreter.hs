@@ -1,7 +1,6 @@
 module Main where
 
 import Control.Monad
-import Data.Array
 
 import System.Console.GetOpt
 import System.Environment
@@ -31,7 +30,7 @@ main = do
     strs <- mapM readFile args
     setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
-        melody = variablePadding $ envGen prog ! 0
+        melody = variablePadding $ interpret (envGen prog) (Var "song")
     when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"
         putStrLn "Original Program ------------------------------------------------------------------------"

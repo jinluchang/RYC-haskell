@@ -4,10 +4,15 @@ messages = traceShow [
         (let message = read (show "hello world\n")
          in (force (trace message) "force evaluate its first argument"))
         (if false (trace "not forced") "if do not evaluate all its arguments")
-        ("Current Argument is : " getArgs)
+        ("Current Argument is : " get-args)
         (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
+        (car (read-with-env (read-env [(read-file "queens")]) "song"))
+        (car (read-with-env global-env (fake-program (read-file "queens"))))
+        (car (read-with-env prim-env (fake-program (read-file "queens"))))
         ((\x y k -> x y z) (\x -> x)) ]
-    (trace (append "\nContents of current file is :\n\n" (readFile "hello-world"))) ;
+    (trace (append "\nContents of current file is :\n\n" (read-file "hello-world"))) ;
+
+fake-program defns = append "let " (append defns " in song") ;
 
 traceShow x = trace (show x) ;
 

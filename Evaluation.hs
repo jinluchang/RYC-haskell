@@ -2,7 +2,6 @@ module Evaluation where
 
 import Data.List
 import Data.Array
-import Data.Maybe
 import Data.Char
 import Control.DeepSeq
 
@@ -14,6 +13,10 @@ import Parser
 
 fi :: (Integral a, Num b) => a -> b
 fi x = fromIntegral x
+
+interpret :: ([Name], EnvG) -> Expr -> ExprC
+interpret (fns, envG) e = eval eb envG [] where
+    eb = compile fns [] e
 
 compile :: [Name] -> [Name] -> Expr -> ExprB
 compile envG = go where
@@ -53,12 +56,14 @@ eval expr envG = go expr where
     apply (LamC f) arg = f arg
     apply fun arg = AppC fun arg
 
-envGen :: [Defn] -> EnvG
-envGen defns = envG where
-    (fns, fs) = unzip $ ("song", fromJust $ lookup "song" defns) : filter ((/= "song") . fst) defns
+envGen :: [Defn] -> ([Name], EnvG)
+envGen defns = (fns, envG) where
+    (dfns, dfs) = unzip defns
+    fns = dfns ++ map fst primitives
     envG = listArray (0, length defns + length primitives - 1) $
-        (map (\eb -> eval eb envG []) $ map (compile (fns ++ map fst primitives) []) fs) ++
+        (map (\eb -> eval eb envG []) $ map (compile fns []) dfs) ++
         map snd primitives
+    primitives = primitivesGen (fns, envG)
 
 variablePadding :: ExprC -> Expr
 variablePadding = renameExpr . go names where
@@ -120,8 +125,8 @@ x `isNotFreeIn` exprB = go exprB where
 -- ------------------------------------------------------------------------------------
 -- ------------------------------------------------------------------------------------
 
-primitives :: [(Name, ExprC)]
-primitives =
+primitivesGen :: ([Name], EnvG) -> [(Name, ExprC)]
+primitivesGen nameEnvG =
     [ ("^"          , LamC $ mapMelody $ raise 12)
     , ("_"          , LamC $ mapMelody $ raise (-12))
     , ("#"          , LamC $ mapMelody $ raise 1)
@@ -141,8 +146,8 @@ primitives =
     , ("and"        , LamC $ \b1 -> LamC $ \b2 -> BooC $ getBooC b1 && getBooC b2)
     , ("chr"        , LamC $ \n -> ChrC . chr . round $ getNumC n)
     , ("ord"        , LamC $ \c -> NumC . fi . ord $ getChrC c)
-    , ("getArgs"    , getArgsC)
-    , ("readFile"   , LamC $ readFileC)
+    , ("get-args"   , getArgsC)
+    , ("read-file"  , LamC $ readFileC)
     , ("char?"      , LamC $ BooC . isChr)
     , ("nil?"       , LamC $ BooC . isNil)
     , ("par?"       , LamC $ BooC . isPar)
@@ -157,12 +162,36 @@ primitives =
     , ("true"       , BooC True)
     , ("false"      , BooC False)
     , ("show"       , LamC $ \e -> SeqC . map ChrC . showExprC $ e )
-    , ("read"       , LamC $ \e -> convertC . readExpr . map getChrC $ getSeqC e)
+    , ("read"       , LamC $ \e -> convertC . readExpr $ getStringC e)
+    , ("read-env"   , LamC $ \e -> putEnvGC . envGen . concatMap (readProg . getStringC) $ getSeqC e)
+    , ("read-with-env"
+                    , LamC $ \envC ->
+                        let env = getEnvGC envC
+                        in LamC $ \e -> interpret env . readExpr $ getStringC e)
+    , ("global-env" , putEnvGC nameEnvG)
+    , ("prim-env"   , putEnvGC primitiveNameEnvG)
     , ("force"      , LamC $ \e -> deepseq e $ LamC id)
     , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id) ]
 
+
+getEnvGC :: ExprC -> ([Name], EnvG)
+getEnvGC = conv . transpose . map getParC . getSeqC where
+    conv [fnsC, es] = (map getStringC fnsC, listArray (0, length es - 1) es)
+    conv _ = error $ "getEnvGC : not a environment"
+
+putEnvGC :: ([Name], EnvG) -> ExprC
+putEnvGC (fns, envG) = SeqC $ zipWith (\n e -> ParC [n,e]) fnsC $ elems envG where
+    fnsC = map (SeqC . map ChrC) fns
+
+getStringC :: ExprC -> String
+getStringC = map getChrC . getSeqC
+
 convertC :: Expr -> ExprC
-convertC e = eval (compile nG [] e) eG [] where
+convertC = interpret primitiveNameEnvG
+
+primitiveNameEnvG :: ([Name], EnvG)
+primitiveNameEnvG = (nG, eG) where
+    primitives = primitivesGen (nG,eG)
     nG = map fst primitives
     eG = listArray (0, length primitives - 1) $ map snd primitives
 
