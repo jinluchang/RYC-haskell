@@ -146,12 +146,14 @@ primitivesGen nameEnvG =
     , ("and"        , LamC $ \b1 -> LamC $ \b2 -> BooC $ getBooC b1 && getBooC b2)
     , ("chr"        , LamC $ \n -> ChrC . chr . round $ getNumC n)
     , ("ord"        , LamC $ \c -> NumC . fi . ord $ getChrC c)
-    , ("get-args"   , getArgsC)
-    , ("read-file"  , LamC $ readFileC)
+    , ("number?"    , LamC $ BooC . isNum)
+    , ("bool?"      , LamC $ BooC . isBoo)
     , ("char?"      , LamC $ BooC . isChr)
     , ("nil?"       , LamC $ BooC . isNil)
     , ("par?"       , LamC $ BooC . isPar)
     , ("seq?"       , LamC $ BooC . isSeq)
+    , ("note?"      , LamC $ BooC . isNote)
+    , ("function?"  , LamC $ BooC . isLam)
     , ("car"        , LamC $ car)
     , ("cdr"        , LamC $ cdr)
     , ("par"        , LamC $ \x -> LamC $ \parxs -> parL x parxs)
@@ -171,8 +173,15 @@ primitivesGen nameEnvG =
     , ("global-env" , putEnvGC nameEnvG)
     , ("prim-env"   , putEnvGC primitiveNameEnvG)
     , ("force"      , LamC $ \e -> deepseq e $ LamC id)
-    , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id) ]
+    , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id)
+    , ("get-args"   , getArgsC)
+    , ("read-file"  , LamC $ readFileC) ]
 
+primitiveNameEnvG :: ([Name], EnvG)
+primitiveNameEnvG = (nG, eG) where
+    primitives = primitivesGen (nG,eG)
+    nG = map fst primitives
+    eG = listArray (0, length primitives - 1) $ map snd primitives
 
 getEnvGC :: ExprC -> ([Name], EnvG)
 getEnvGC = conv . transpose . map getParC . getSeqC where
@@ -185,12 +194,6 @@ putEnvGC (fns, envG) = SeqC $ zipWith (\n e -> ParC [n,e]) fnsC $ elems envG whe
 
 getStringC :: ExprC -> String
 getStringC = map getChrC . getSeqC
-
-primitiveNameEnvG :: ([Name], EnvG)
-primitiveNameEnvG = (nG, eG) where
-    primitives = primitivesGen (nG,eG)
-    nG = map fst primitives
-    eG = listArray (0, length primitives - 1) $ map snd primitives
 
 parL :: ExprC -> ExprC -> ExprC
 parL x parxs = ParC $ x:xs where
@@ -242,6 +245,22 @@ getParC e = error $ "getParC : " ++ showExprC e
 getNumC :: ExprC -> Number
 getNumC (NumC n) = n
 getNumC e = error $ "getNumC : " ++ showExprC e
+
+isNote :: ExprC -> Bool
+isNote (NoteC _ _) = True
+isNote _ = False
+
+isLam :: ExprC -> Bool
+isLam (LamC _) = True
+isLam _ = False
+
+isBoo :: ExprC -> Bool
+isBoo (BooC _) = True
+isBoo _ = False
+
+isNum :: ExprC -> Bool
+isNum (NumC _) = True
+isNum _ = False
 
 isChr :: ExprC -> Bool
 isChr (ChrC _) = True
