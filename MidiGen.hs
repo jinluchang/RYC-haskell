@@ -68,13 +68,26 @@ main = do
     let defaultOutputFileName = replaceExtension (takeFileName (head args)) ".mid"
         outputFileName = last . (defaultOutputFileName :) $ mapMaybe getOutputFilename flags
     exportFile (cwd </> outputFileName) $ Midi
-        { fileType = SingleTrack
-        , timeDiv = TicksPerBeat 230
-        , tracks = [track] }
+        { fileType = MultiTrack
+        , timeDiv = TicksPerBeat 120
+        , tracks =
+            [ [ (0,TimeSignature 4 4 24 8)
+              , (0,TempoChange (60000000 `div` 120))
+              , (0,TrackName "Created by RYC with HCodecs")
+              , (0,TrackEnd) ]
+            , [ (0,ControlChange {channel = 0, controllerNumber = 10, controllerValue = 0})
+              , (0,ControlChange {channel = 1, controllerNumber = 10, controllerValue = 64})
+              , (0,ControlChange {channel = 2, controllerNumber = 10, controllerValue = 127})
+              , (0,ProgramChange {channel = 0, preset = 0})
+              , (0,ProgramChange {channel = 1, preset = 0})
+              , (0,ProgramChange {channel = 2, preset = 0})
+              , (0,ProgramChange {channel = 3, preset = 0}) ]
+              ++ track
+            ] }
 
 deltaList :: [(Int, Message)] -> [(Int, Message)]
 deltaList = delta 0 . sortBy (compare `on` fst) where
-    delta _    [] = [(500, TrackEnd)]
+    delta _    [] = [(0, TrackEnd)]
     delta l ((tx,x):rs) = (tx-l,x) : delta tx rs
 
 eventList :: Expr -> [(Int, Message)]
@@ -89,7 +102,7 @@ eventList melody = go 0 melody where
     go _ e = error $ "Final result is not a melody : " ++ showExpr e
 
 getKey :: Expr -> Maybe Int
-getKey (Note (Num x) _) = liftM (43+) $ go x
+getKey (Note (Num x) _) = liftM (60+) $ go x
   where
     go 0 = Nothing
     go 1.0 = Just 0
