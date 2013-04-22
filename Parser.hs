@@ -165,7 +165,10 @@ pProg = do
     return prog
 
 pDefns :: Parser [Defn]
-pDefns = padSpaces pDefn `sepBy1` char ';'
+pDefns = do
+    pSpaces
+    ds <- padSpaces pDefn `sepEndBy1` padSpaces (char ';')
+    return ds
 
 pDefn :: Parser Defn
 pDefn = do
@@ -286,7 +289,8 @@ pParList = do
 pParentheseExpr :: Parser Expr
 pParentheseExpr = do
     _ <- char '('
-    es <- padSpaces pExpr `sepBy1` char ','
+    pSpaces
+    es <- padSpaces pExpr `sepBy1` padSpaces (char ',')
     _ <- char ')'
     case es of
         [e] -> return e
@@ -309,7 +313,6 @@ pName = do
 
 padSpaces :: Parser a -> Parser a
 padSpaces p = do
-    pSpaces
     x <- p
     pSpaces
     return x

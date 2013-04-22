@@ -57,4 +57,4 @@ filterSeq p xs = if (nil? xs)
     (let x' = car xs ; xs' = cdr xs
      in if (p x')
          (seq x' (filterSeq p xs'))
-         (filterSeq p xs'))
+         (filterSeq p xs')) ;
