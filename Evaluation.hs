@@ -185,7 +185,8 @@ primitivesGen nameEnvG =
     , ("force"      , LamC $ \e -> deepseq e $ LamC id)
     , ("trace"      , LamC $ \e -> trace (map getChrC . getSeqC $ e) $ LamC id)
     , ("get-args"   , getArgsC)
-    , ("read-file"  , LamC $ readFileC) ]
+    , ("read-file"  , LamC $ readFileC)
+    , ("tempo"      , NumC 120) ]
 
 primitiveNameEnvG :: ([Name], EnvG)
 primitiveNameEnvG = nEnvG where

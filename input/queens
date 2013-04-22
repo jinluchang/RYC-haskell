@@ -1,5 +1,7 @@
 /* vim: set expandtab filetype=haskell : */
 
+tempo = 200 ;
+
 song = search-queen 8 ;
 
 search-queen size =

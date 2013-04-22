@@ -43,7 +43,9 @@ main = do
     cwd <- getCurrentDirectory
     setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
-        melody = variablePadding $ interpret (envGen prog) (Var "song")
+        nEnvG = envGen prog
+        melody = variablePadding $ interpret nEnvG (Var "song")
+        tempo = getNumC $ interpret nEnvG (Var "tempo")
         track = deltaList . eventList . fillDefault $ melody
     when (Verbose `elem` flags) $ do
         putStrLn "-----------------------------------------------------------------------------------------"
@@ -72,7 +74,7 @@ main = do
         , timeDiv = TicksPerBeat 120
         , tracks =
             [ [ (0,TimeSignature 4 4 24 8)
-              , (0,TempoChange (60000000 `div` 120))
+              , (0,TempoChange (round $ 60000000 / tempo))
               , (0,TrackName "Created by RYC with HCodecs")
               , (0,TrackEnd) ]
             , [ (0,ControlChange {channel = 0, controllerNumber = 10, controllerValue = 0})
