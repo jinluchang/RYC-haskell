@@ -260,10 +260,17 @@ pNum = do
 
 pOpExpr :: Parser Expr
 pOpExpr = do
-    op <- oneOf "^_#&"
-    pSpaces
-    e <- pAExpr
-    return $ App (Var [op]) e
+    op <- oneOf "^_#&@"
+    if op /= '@'
+        then do
+            pSpaces
+            e <- pAExpr
+            return $ App (Var [op]) e
+        else do
+            f <- pName
+            pSpaces
+            e <- pAExpr
+            return $ App (Var f) e
 
 pSeqList :: Parser Expr
 pSeqList = do
@@ -309,8 +316,8 @@ pName = do
     if op /= ""
         then string op
         else do
-            c <- oneOf "+-*/%<>" <|> letter
-            cs <- many (alphaNum <|> oneOf "=_?\'+-*/%<>")
+            c <- oneOf "+-*/<>" <|> letter
+            cs <- many (alphaNum <|> oneOf "=_?\'+-*/<>")
             return $ c:cs
 
 padSpaces :: Parser a -> Parser a
