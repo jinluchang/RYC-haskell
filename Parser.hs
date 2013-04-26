@@ -126,7 +126,7 @@ showAExpr (Seq cs) | all isC cs = show $ map getC cs where
     isC _ = False
     getC (Chr c) = c
     getC e = error $ "showAExpr : getC : not a character : " ++ showExpr e
-showAExpr (Note e1 e2 (Num 127)) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
+showAExpr (Note e1 e2 (Num 1)) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
 showAExpr (Note e1 e2 e3) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ "," ++ showExpr e3 ++ ")"
 showAExpr (Seq es) = "[" ++ unwords (map showAExpr es) ++ "]"
 showAExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
@@ -302,7 +302,7 @@ pParentheseExpr = do
     _ <- char ')'
     case es of
         [e] -> return e
-        [e1,e2] -> return $ Note e1 e2 (Num 127)
+        [e1,e2] -> return $ Note e1 e2 (Num 1)
         [e1,e2,e3] -> return $ Note e1 e2 e3
         _ -> fail "invalid parenthese expression"
 

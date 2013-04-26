@@ -2,7 +2,7 @@
 
 tempo = 130 ;
 
-song = { m1 (decreaseVelocity 0.8 (m2 a b c e)) } ;
+song = { m1 (scaleVelocity 0.6 (m2 a b c e)) } ;
 
 mapMelody f m =
     if (number? m)
@@ -19,10 +19,10 @@ mapMelody f m =
             (par (mapMelody f (car m)) (mapMelody f (cdr m))))
     {"mapMelody : not a melody" m}))) ;
 
-decreaseVelocity ratio =
+scaleVelocity ratio =
     let go n =
         if (number? n)
-            (n, 1, * ratio 127)
+            (n, 1, ratio)
         (if (note? n)
             (pitch n, time n, * ratio (velocity n))
             "decreaseVelocity : not a note")

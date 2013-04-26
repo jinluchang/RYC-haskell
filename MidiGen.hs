@@ -93,8 +93,8 @@ eventList :: Expr -> [(Int, Message)]
 eventList melody = go 0 melody where
     go start n@(Note _ _ (Num v)) = case getKey n of
         Nothing -> []
-        Just k -> [ (start, NoteOn {channel = 1, key = k, velocity = round v})
-                  , (start + getDuration n - 1, NoteOff {channel = 1, key = k, velocity = 127})]
+        Just k -> [ (start, NoteOn {channel = 1, key = k, velocity = min 127 $ round $ 127 * v})
+                  , (start + getDuration n - 1, NoteOff {channel = 1, key = k, velocity = min 127 $ round $ 127 * v})]
     go start (Par es) = concatMap (go start) es
     go _     (Seq []) = []
     go start (Seq (e:es)) = go start e ++ go (start + getDuration e) (Seq es)
@@ -129,7 +129,7 @@ getDuration _ = error "Not a note"
 
 fillDefault :: Expr -> Expr
 fillDefault expr = case expr of
-    Num n -> Note (Num n) (Num 1) (Num 127)
+    Num n -> Note (Num n) (Num 1) (Num 1)
     Seq es -> Seq $ map fillDefault es
     Par es -> Par $ map fillDefault es
     _ -> expr
