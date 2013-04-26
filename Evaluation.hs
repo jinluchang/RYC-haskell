@@ -23,7 +23,7 @@ compile envG = go where
         Boo b -> BooB b
         Num n -> NumB n
         Chr c -> ChrB c
-        Note e1 e2 -> NoteB (go env e1) (go env e2)
+        Note e1 e2 e3 -> NoteB (go env e1) (go env e2) (go env e3)
         App e1 e2 -> AppB (go env e1) (go env e2)
         Seq es -> SeqB $ map (go env) es
         Par es -> ParB $ map (go env) es
@@ -45,7 +45,7 @@ eval envG = go where
         ChrB c -> ChrC c
         SeqB es -> SeqC $ map (go env) es
         ParB es -> ParC $ map (go env) es
-        NoteB e1 e2 -> NoteC (go env e1) (go env e2)
+        NoteB e1 e2 e3 -> NoteC (go env e1) (go env e2) (go env e3)
         AppB e1 e2 -> apply (go env e1) (go env e2)
         LetB ds e' -> go env' e'
           where env' = map (go env') ds ++ env
@@ -73,7 +73,7 @@ variablePadding = renameExpr . go names where
         BooC b -> Boo b
         NumC n -> Num n
         ChrC c -> Chr c
-        NoteC e1 e2 -> Note (go ns e1) (go ns e2)
+        NoteC e1 e2 e3 -> Note (go ns e1) (go ns e2) (go ns e3)
         AppC e1 e2 -> App (go ns e1) (go ns e2)
         SeqC es -> Seq $ map (go ns) es
         ParC es -> Par $ map (go ns) es
@@ -90,7 +90,7 @@ renameExpr = pad [] . compile [] [] where
         ChrB c -> Chr c
         SeqB es -> Seq $ map (pad env) es
         ParB es -> Par $ map (pad env) es
-        NoteB e1 e2 -> Note (pad env e1) (pad env e2)
+        NoteB e1 e2 e3 -> Note (pad env e1) (pad env e2) (pad env e3)
         AppB e1 e2 -> App (pad env e1) (pad env e2)
         LetB ds e' -> Let (zip ns $ map (pad env') ds) $ pad env' e'
           where
@@ -115,7 +115,7 @@ x `isNotFreeIn` exprB = go exprB where
         ChrB _ -> True
         SeqB es -> all go es
         ParB es -> all go es
-        NoteB e1 e2 -> go e1 && go e2
+        NoteB e1 e2 e3 -> go e1 && go e2 && go e3
         AppB e1 e2 -> go e1 && go e2
         LetB ds e -> all go ds && go e
         BoundB _ -> True
@@ -161,6 +161,7 @@ primitivesGen nameEnvG =
     , ("seq"        , LamC $ \x -> LamC $ \seqxs -> seqL x seqxs)
     , ("time"       , LamC $ \e -> NumC $ getTime e)
     , ("pitch"      , LamC $ \e -> NumC $ getPitch e)
+    , ("velocity"   , LamC $ \e -> NumC $ getVelocity e)
     , ("if"         , LamC $ \b -> LamC $ \e1 -> LamC $ \e2 -> if getBooC b then e1 else e2)
     , ("true"       , BooC True)
     , ("false"      , BooC False)
@@ -269,7 +270,7 @@ getNumC (NumC n) = n
 getNumC e = error $ "getNumC : " ++ showExprC e
 
 isNote :: ExprC -> Bool
-isNote (NoteC _ _) = True
+isNote (NoteC _ _ _) = True
 isNote _ = False
 
 isLam :: ExprC -> Bool
@@ -294,16 +295,16 @@ isNil (SeqC []) = True
 isNil _ = False
 
 isPar :: ExprC -> Bool
-isPar (ParC []) = True
+isPar (ParC _) = True
 isPar _ = False
 
 isSeq :: ExprC -> Bool
-isSeq (SeqC []) = True
+isSeq (SeqC _) = True
 isSeq _ = False
 
 raise :: Int -> ExprC -> ExprC
 raise k = mapMelody go where
-    go (NoteC (NumC n) t) = NoteC (NumC (loop k n)) t
+    go (NoteC (NumC n) t v) = NoteC (NumC (loop k n)) t v
     go (NumC n) = NumC (loop k n)
     go ec = error $ "change pitch is not allowed for this argument: " ++ showExpr (variablePadding ec)
     loop n | n > 0 = r . loop (n-1)
@@ -342,17 +343,22 @@ raise k = mapMelody go where
         | n < 0 = l (n+8) - 8
     l n = error $ "Not a note " ++ show n
 
+getPitch :: ExprC -> Number
+getPitch (NumC n) = n
+getPitch (NoteC (NumC n) _ _) = n
+getPitch e = error $ "pitch : not a note : " ++ showExprC e
+
 getTime :: ExprC -> Number
 getTime (SeqC es) = sum $ map getTime es
 getTime (ParC es) = maximum $ map getTime es
 getTime (NumC _) = 1
-getTime (NoteC _ (NumC t)) = t
+getTime (NoteC _ (NumC t) _) = t
 getTime e = error $ "time : not a melody : " ++ showExprC e
 
-getPitch :: ExprC -> Number
-getPitch (NumC n) = n
-getPitch (NoteC (NumC n) _) = n
-getPitch e = error $ "pitch : not a note : " ++ showExprC e
+getVelocity :: ExprC -> Number
+getVelocity (NumC _) = 127
+getVelocity (NoteC _ _ (NumC v)) = v
+getVelocity e = error $ "velocity : not a note : " ++ showExprC e
 
 mapMelody :: (ExprC -> ExprC) -> ExprC -> ExprC
 mapMelody f (SeqC es) = SeqC $ map (mapMelody f) es

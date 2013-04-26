@@ -4,8 +4,6 @@ import Control.Monad
 
 import System.Console.GetOpt
 import System.Environment
-import System.Directory
-import System.FilePath
 
 import Parser
 import Evaluation
@@ -28,7 +26,6 @@ main = do
     (flags, args) <- liftM (compileOpts . takeWhile (/="---")) $ getArgs
     if args == [] then error "No input files" else return ()
     strs <- mapM readFile args
-    setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
         melody = variablePadding $ interpret (envGen prog) (Var "song")
     when (Verbose `elem` flags) $ do

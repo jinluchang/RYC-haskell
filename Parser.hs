@@ -16,7 +16,7 @@ data Expr = Var Name
           | Boo Bool
           | Num Number
           | Chr Char
-          | Note Expr Expr
+          | Note Expr Expr Expr
           | App Expr Expr
           | Seq [Expr]
           | Par [Expr]
@@ -29,7 +29,7 @@ data ExprB = VarB Name
            | BooB Bool
            | NumB Number
            | ChrB Char
-           | NoteB ExprB ExprB
+           | NoteB ExprB ExprB ExprB
            | AppB ExprB ExprB
            | SeqB [ExprB]
            | ParB [ExprB]
@@ -40,7 +40,7 @@ data ExprC = VarC Name
            | BooC Bool
            | NumC Number
            | ChrC Char
-           | NoteC ExprC ExprC
+           | NoteC ExprC ExprC ExprC
            | AppC ExprC ExprC
            | SeqC [ExprC]
            | ParC [ExprC]
@@ -58,7 +58,7 @@ instance Eq Expr where
     Boo x == Boo y = x == y
     Num x == Num y = x == y
     Chr x == Chr y = x == y
-    Note x1 x2 == Note y1 y2 = x1 == y1 && x2 == y2
+    Note x1 x2 x3 == Note y1 y2 y3 = x1 == y1 && x2 == y2 && x3 == y3
     Seq xs == Seq ys = xs == ys
     Par xs == Par ys = xs == ys
     App _ _ == _ = error "First operand has not been fully evaluated when compared for equality"
@@ -72,7 +72,7 @@ instance Eq ExprC where
     BooC x == BooC y = x == y
     NumC x == NumC y = x == y
     ChrC x == ChrC y = x == y
-    NoteC x1 x2 == NoteC y1 y2 = x1 == y1 && x2 == y2
+    NoteC x1 x2 x3 == NoteC y1 y2 y3 = x1 == y1 && x2 == y2 && x3 == y3
     SeqC xs == SeqC ys = xs == ys
     ParC xs == ParC ys = xs == ys
     AppC _ _ == _ = error "First operand has not been fully evaluated when compared for equality"
@@ -86,7 +86,7 @@ instance NFData ExprC where
     rnf (BooC x) = rnf x
     rnf (NumC x) = rnf x
     rnf (ChrC x) = rnf x
-    rnf (NoteC x y) = rnf (x,y)
+    rnf (NoteC x y z) = rnf (x,y,z)
     rnf (SeqC xs) = rnf xs
     rnf (ParC xs) = rnf xs
     rnf (AppC x y) = rnf (x,y)
@@ -96,18 +96,18 @@ instance Show Expr where
     show = showExpr
 
 showExpr :: Expr -> String
-showExpr (Var x) = showAExpr (Var x)
-showExpr (Boo b) = showAExpr (Boo b)
+showExpr (Var x) = showAExpr $ Var x
+showExpr (Boo b) = showAExpr $ Boo b
 showExpr (Num n) | n < 0 = "- 0 " ++ showAExpr (Num (-n))
                  | 1000 `mod` denominator n /= 0 = "/ " ++ show (numerator n) ++ " " ++ show (denominator n)
                  | otherwise = showAExpr (Num n)
 showExpr (Chr c) = showAExpr (Chr c)
-showExpr (Note e1 e2) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
+showExpr (Note e1 e2 e3) = showAExpr $ Note e1 e2 e3
 showExpr (App e1 e2) = showFun e1 ++ " " ++ showArg e2 where
     showFun e = showExpr e
     showArg e = showAExpr e
-showExpr (Seq es) = showAExpr (Seq es)
-showExpr (Par es) = showAExpr (Par es)
+showExpr (Seq es) = showAExpr $ Seq es
+showExpr (Par es) = showAExpr $ Par es
 showExpr (Lam x body) = showLamExpr [x] body
 showExpr (Let ds e) = "let " ++ intercalate " ; " (map showDefn ds) ++ " in " ++ showExpr e
 
@@ -126,7 +126,8 @@ showAExpr (Seq cs) | all isC cs = show $ map getC cs where
     isC _ = False
     getC (Chr c) = c
     getC e = error $ "showAExpr : getC : not a character : " ++ showExpr e
-showAExpr (Note e1 e2) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
+showAExpr (Note e1 e2 (Num 127)) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ ")"
+showAExpr (Note e1 e2 e3) = "(" ++ showExpr e1 ++ "," ++ showExpr e2 ++ "," ++ showExpr e3 ++ ")"
 showAExpr (Seq es) = "[" ++ unwords (map showAExpr es) ++ "]"
 showAExpr (Par es) = "{" ++ unwords (map showAExpr es) ++ "}"
 showAExpr e = "(" ++ showExpr e ++ ")"
@@ -294,7 +295,8 @@ pParentheseExpr = do
     _ <- char ')'
     case es of
         [e] -> return e
-        [e1,e2] -> return $ Note e1 e2
+        [e1,e2] -> return $ Note e1 e2 (Num 127)
+        [e1,e2,e3] -> return $ Note e1 e2 e3
         _ -> fail "invalid parenthese expression"
 
 pName :: Parser Name

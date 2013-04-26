@@ -2,21 +2,21 @@
 
 song = read "traceShow messages [1 2 3 4 5 6 7 9]" ;
 
-messages = trace (append "\nContents of current file is :\n\n" (read-file "hello-world"))
+messages = trace (append "\nContents of current file is :\n\n" (read-file "input/hello-world"))
     [ (let msg = read (show "hello world\n")
        in (force (trace msg) "force evaluate its first argument"))
       (if false (trace "not forced") "if do not evaluate all its arguments")
       ("complete arguments are: " get-args)
       ("arguments for this are: " args)
       (we-support-following-data-types-now "String" ['c' 'h' 'a' 'r'] {'c' 'h' 'a' 'r'})
-      (car (read-with-env (read-env (read-file "queens")) "song"))
-      (car (read-with-env global-env (fake-program (read-file "queens"))))
-      (car (read-with-env prim-env (fake-program (read-file "queens"))))
+      (car (read-with-env (read-env (read-file "input/queens")) "song"))
+      (car (read-with-env global-env (fake-program (read-file "input/queens"))))
+      (car (read-with-env prim-env (fake-program (read-file "input/queens"))))
       ((\x y k -> x y z) (\x -> x))
-      (map car (read-env (read-file "queens")))
-      (car (read-env (read-file "queens")))
+      (map car (read-env (read-file "input/queens")))
+      (car (read-env (read-file "input/queens")))
       (let env = concat
-        [ (read-env-gen (read-file "queens") env)
+        [ (read-env-gen (read-file "input/queens") env)
           [ {"+" (\x y -> if (and (== 6 x) (== 7 y)) (traceShow {"+" x y}) (\a -> a) (+ x y))} ]
           (prim-env-gen env) ]
        in car env) ];

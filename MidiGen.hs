@@ -7,7 +7,6 @@ import Control.Monad
 
 import System.Console.GetOpt
 import System.Environment
-import System.Directory
 import System.FilePath
 
 import Codec.Midi
@@ -40,8 +39,6 @@ main = do
     (flags, args) <- liftM (compileOpts . takeWhile (/="---")) $ getArgs
     if args == [] then error "No input files" else return ()
     strs <- mapM readFile args
-    cwd <- getCurrentDirectory
-    setCurrentDirectory $ takeDirectory . head $ args
     let prog = concat $ map readProg strs
         nEnvG = envGen prog
         melody = variablePadding $ interpret nEnvG (Var "song")
@@ -69,7 +66,7 @@ main = do
         mapM_ print $ track
     let defaultOutputFileName = replaceExtension (takeFileName (head args)) ".mid"
         outputFileName = last . (defaultOutputFileName :) $ mapMaybe getOutputFilename flags
-    exportFile (cwd </> outputFileName) $ Midi
+    exportFile outputFileName $ Midi
         { fileType = MultiTrack
         , timeDiv = TicksPerBeat 120
         , tracks =
@@ -94,9 +91,9 @@ deltaList = delta 0 . sortBy (compare `on` fst) where
 
 eventList :: Expr -> [(Int, Message)]
 eventList melody = go 0 melody where
-    go start n@(Note _ _) = case getKey n of
+    go start n@(Note _ _ (Num v)) = case getKey n of
         Nothing -> []
-        Just k -> [ (start, NoteOn {channel = 1, key = k, velocity = 127})
+        Just k -> [ (start, NoteOn {channel = 1, key = k, velocity = round v})
                   , (start + getDuration n - 1, NoteOff {channel = 1, key = k, velocity = 127})]
     go start (Par es) = concatMap (go start) es
     go _     (Seq []) = []
@@ -104,7 +101,7 @@ eventList melody = go 0 melody where
     go _ e = error $ "Final result is not a melody : " ++ showExpr e
 
 getKey :: Expr -> Maybe Int
-getKey (Note (Num x) _) = liftM (60+) $ go x
+getKey (Note (Num x) _ _) = liftM (60+) $ go x
   where
     go 0 = Nothing
     go 1.0 = Just 0
@@ -125,14 +122,14 @@ getKey (Note (Num x) _) = liftM (60+) $ go x
 getKey _ = error "Not a note"
 
 getDuration :: Expr -> Int
-getDuration (Note _ (Num t)) = round $ 120 * t
+getDuration (Note _ (Num t) _) = round $ 120 * t
 getDuration (Seq es) = sum $ map getDuration es
 getDuration (Par es) = maximum $ map getDuration es
 getDuration _ = error "Not a note"
 
 fillDefault :: Expr -> Expr
 fillDefault expr = case expr of
-    Num n -> Note (Num n) (Num 1)
+    Num n -> Note (Num n) (Num 1) (Num 127)
     Seq es -> Seq $ map fillDefault es
     Par es -> Par $ map fillDefault es
     _ -> expr
