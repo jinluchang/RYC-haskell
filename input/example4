@@ -1,5 +1,7 @@
 /* vim: set expandtab filetype=haskell : */
 
+tempo = 130 ;
+
 song = { m1 (decreaseVelocity 0.8 (m2 a b c e)) } ;
 
 mapMelody f m =
