@@ -52,8 +52,10 @@ eval envG = go where
         BoundB n -> env !! n
         BoundGB n -> envG ! n
         LamB body -> LamC $ \vx -> go (vx:env) body
-    apply (LamC f) arg = f arg
-    apply fun arg = AppC fun arg
+
+apply :: ExprC -> ExprC -> ExprC
+apply (LamC f) arg = f arg
+apply fun arg = AppC fun arg
 
 envGen :: [Defn] -> ([Name], EnvG)
 envGen defns = nEnvG where
@@ -128,7 +130,8 @@ x `isNotFreeIn` exprB = go exprB where
 
 primitivesGen :: ([Name], EnvG) -> [(Name, ExprC)]
 primitivesGen nameEnvG =
-    [ ("^"          , LamC $ mapMelody $ raise 12)
+    [ ("@"          , LamC $ \f -> LamC $ \a -> apply f a)
+    , ("^"          , LamC $ mapMelody $ raise 12)
     , ("_"          , LamC $ mapMelody $ raise (-12))
     , ("#"          , LamC $ mapMelody $ raise 1)
     , ("&"          , LamC $ mapMelody $ raise (-1))

@@ -267,10 +267,10 @@ pOpExpr = do
             e <- pAExpr
             return $ App (Var [op]) e
         else do
-            f <- pName
+            f <- pAExpr
             pSpaces
             e <- pAExpr
-            return $ App (Var f) e
+            return $ App (App (Var "@") f) e
 
 pSeqList :: Parser Expr
 pSeqList = do
