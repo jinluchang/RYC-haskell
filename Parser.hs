@@ -104,6 +104,7 @@ showExpr (Num n) | n < 0 = "- 0 " ++ showAExpr (Num (-n))
 showExpr (Chr c) = showAExpr (Chr c)
 showExpr (Note e1 e2 e3) = showAExpr $ Note e1 e2 e3
 showExpr (App e1 e2) = showFun e1 ++ " " ++ showArg e2 where
+    showFun (Lam x body) = showAExpr $ Lam x body
     showFun e = showExpr e
     showArg e = showAExpr e
 showExpr (Seq es) = showAExpr $ Seq es
