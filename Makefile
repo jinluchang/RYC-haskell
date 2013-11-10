@@ -10,4 +10,4 @@ test : ryc-midi
 	for i in input/* ; do echo $$i ; ./ryc-midi $$i ; done
 
 clean :
-	rm ryc ryc-midi *.hi *.o *.mid || :
+	rm ryc ryc-midi *.hi *.o *.mid *.ogg *.mp3 || :
